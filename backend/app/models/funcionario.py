@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey
+from sqlalchemy import Column, Integer, ForeignKey
 from app.database.base import Base
 
 
@@ -7,10 +7,6 @@ class Funcionario(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    nome = Column(String(200))
-    cpf = Column(String(20))
+    col_pessoa = Column(Integer, nullable=False, unique=True)
 
-    data_admissao = Column(Date)
-
-    cargo_id = Column(Integer, ForeignKey("rh_cargos.id"))
-    departamento_id = Column(Integer, ForeignKey("rh_departamentos.id"))
+    departamento_id = Column(Integer, ForeignKey("rh_departamentos.id"), nullable=False)
