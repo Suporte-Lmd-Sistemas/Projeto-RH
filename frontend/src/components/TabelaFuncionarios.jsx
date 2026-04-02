@@ -21,150 +21,325 @@ export default function TabelaFuncionarios({
     );
   }
 
-  return (
-    <div style={styles.card}>
-      <table style={styles.table}>
-        <thead>
-          <tr>
-            <th style={styles.th}>ID</th>
-            <th style={styles.th}>Nome</th>
-            <th style={styles.th}>CPF</th>
-            <th style={styles.th}>Cargo</th>
-            <th style={styles.th}>Setor</th>
-            <th style={styles.th}>Status</th>
-            <th style={styles.th}>Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {funcionarios.length > 0 ? (
-            funcionarios.map((funcionario) => (
-              <tr key={funcionario.id}>
-                <td style={styles.td}>{funcionario.id}</td>
-                <td style={styles.td}>{funcionario.nome}</td>
-                <td style={styles.td}>{funcionario.cpf}</td>
-                <td style={styles.td}>{funcionario.cargo}</td>
-                <td style={styles.td}>{funcionario.setor}</td>
-                <td style={styles.td}>
-                  <span
-                    style={{
-                      ...styles.badge,
-                      backgroundColor:
-                        funcionario.status === "Ativo" ? "#dcfce7" : "#fee2e2",
-                      color:
-                        funcionario.status === "Ativo" ? "#166534" : "#991b1b",
-                    }}
-                  >
-                    {funcionario.status}
-                  </span>
-                </td>
-                <td style={styles.td}>
-                  <div style={styles.actions}>
-                    <button
-                      type="button"
-                      style={styles.editButton}
-                      onClick={() => onEditar(funcionario)}
-                    >
-                      Editar
-                    </button>
+  if (!funcionarios || funcionarios.length === 0) {
+    return (
+      <div style={styles.messageCard}>
+        <p style={styles.messageText}>Nenhum funcionário encontrado.</p>
+      </div>
+    );
+  }
 
-                    <button
-                      type="button"
-                      style={styles.deleteButton}
-                      onClick={() => onExcluir(funcionario)}
-                    >
-                      Excluir
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td style={styles.empty} colSpan={7}>
-                Nenhum funcionário encontrado.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+  return (
+    <div style={styles.wrapper}>
+      <div style={styles.grid}>
+        {funcionarios.map((funcionario) => {
+          const statusNormalizado = String(funcionario.status || "")
+            .trim()
+            .toLowerCase();
+
+          const statusAtivo =
+            statusNormalizado === "ativo" ||
+            statusNormalizado === "active" ||
+            statusNormalizado === "integrado";
+
+          return (
+            <div key={funcionario.id} style={styles.card}>
+              <div style={styles.avatar}></div>
+
+              <div style={styles.idText}>
+                ID ERP - {funcionario.col_pessoa || funcionario.id || "000"}
+              </div>
+
+              <div style={styles.nome} title={funcionario.nome || ""}>
+                {funcionario.nome || "Funcionário sem nome"}
+              </div>
+
+              <div style={styles.infoBox}>
+                <div style={styles.infoRow}>
+                  <span style={styles.infoLabel}>Setor</span>
+                  <span style={styles.infoValue}>
+                    {funcionario.setor || "-"}
+                  </span>
+                </div>
+
+                <div style={styles.infoDivider}></div>
+
+                <div style={styles.infoRow}>
+                  <span style={styles.infoLabel}>Departamento</span>
+                  <span style={styles.infoValue}>
+                    {funcionario.setor || "-"}
+                  </span>
+                </div>
+              </div>
+
+              <div style={styles.extraInfo}>
+                <div style={styles.chipPrimary}>
+                  {funcionario.cargo_rh_nome || "Sem cargo RH"}
+                </div>
+
+                <div
+                  style={{
+                    ...styles.chipNeutral,
+                    ...(statusAtivo ? styles.chipSuccess : styles.chipDanger),
+                  }}
+                >
+                  {funcionario.status || "Sem status"}
+                </div>
+              </div>
+
+              <div style={styles.actions}>
+                <button
+                  type="button"
+                  style={styles.editButton}
+                  onClick={() => onEditar(funcionario)}
+                >
+                  Editar
+                </button>
+
+                <button
+                  type="button"
+                  style={styles.deleteButton}
+                  onClick={() => onExcluir(funcionario)}
+                >
+                  Excluir
+                </button>
+              </div>
+
+              <div style={styles.footerInfo}>
+                <div style={styles.footerLine}>
+                  <span style={styles.footerLabel}>CPF:</span>
+                  <span style={styles.footerValue}>
+                    {funcionario.cpf || "-"}
+                  </span>
+                </div>
+
+                <div style={styles.footerLine}>
+                  <span style={styles.footerLabel}>Cargo ERP:</span>
+                  <span style={styles.footerValue}>
+                    {funcionario.cargo_oficial || "-"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 const styles = {
+  wrapper: {
+    width: "100%",
+  },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+    gap: "20px",
+  },
+
   card: {
     backgroundColor: "#ffffff",
-    borderRadius: "14px",
-    padding: "16px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
-    overflowX: "auto",
+    borderRadius: "22px",
+    padding: "22px 18px 18px 18px",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+    border: "1px solid #edf1f5",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    minHeight: "320px",
+    boxSizing: "border-box",
   },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-  },
-  th: {
-    textAlign: "left",
-    padding: "14px 12px",
-    borderBottom: "1px solid #e5e7eb",
-    fontSize: "14px",
-    color: "#374151",
-    backgroundColor: "#f9fafb",
-  },
-  td: {
-    padding: "14px 12px",
-    borderBottom: "1px solid #f1f5f9",
-    fontSize: "14px",
-    verticalAlign: "middle",
-  },
-  badge: {
-    display: "inline-block",
-    padding: "6px 10px",
+
+  avatar: {
+    width: "58px",
+    height: "58px",
     borderRadius: "999px",
-    fontSize: "12px",
-    fontWeight: "bold",
+    backgroundColor: "#e5e7eb",
+    marginBottom: "12px",
+    flexShrink: 0,
   },
-  actions: {
+
+  idText: {
+    fontSize: "11px",
+    color: "#9ca3af",
+    marginBottom: "8px",
+    textAlign: "center",
+  },
+
+  nome: {
+    fontSize: "15px",
+    fontWeight: "700",
+    color: "#6b7280",
+    textTransform: "uppercase",
+    textAlign: "center",
+    marginBottom: "14px",
+    minHeight: "36px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    lineHeight: 1.2,
+  },
+
+  infoBox: {
+    width: "100%",
+    backgroundColor: "#f9fafb",
+    borderRadius: "14px",
+    border: "1px solid #f1f5f9",
+    overflow: "hidden",
+    marginBottom: "14px",
+  },
+
+  infoRow: {
+    display: "grid",
+    gridTemplateColumns: "90px 1fr",
+    alignItems: "center",
+    minHeight: "38px",
+    padding: "0 12px",
+    columnGap: "8px",
+  },
+
+  infoDivider: {
+    height: "1px",
+    backgroundColor: "#e5e7eb",
+    width: "100%",
+  },
+
+  infoLabel: {
+    fontSize: "11px",
+    color: "#6b7280",
+    fontWeight: "600",
+  },
+
+  infoValue: {
+    fontSize: "11px",
+    color: "#374151",
+    textAlign: "right",
+    fontWeight: "500",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+
+  extraInfo: {
+    width: "100%",
     display: "flex",
     gap: "8px",
     flexWrap: "wrap",
+    justifyContent: "center",
+    marginBottom: "14px",
   },
-  editButton: {
-    padding: "8px 12px",
-    border: "none",
-    borderRadius: "8px",
-    backgroundColor: "#2563eb",
-    color: "#ffffff",
-    fontWeight: "bold",
-    cursor: "pointer",
-  },
-  deleteButton: {
-    padding: "8px 12px",
-    border: "none",
-    borderRadius: "8px",
-    backgroundColor: "#dc2626",
-    color: "#ffffff",
-    fontWeight: "bold",
-    cursor: "pointer",
-  },
-  empty: {
-    padding: "20px",
+
+  chipPrimary: {
+    backgroundColor: "#dbeafe",
+    color: "#2563eb",
+    fontSize: "11px",
+    fontWeight: "700",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    maxWidth: "100%",
     textAlign: "center",
-    color: "#6b7280",
   },
+
+  chipNeutral: {
+    fontSize: "11px",
+    fontWeight: "700",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    textAlign: "center",
+  },
+
+  chipSuccess: {
+    backgroundColor: "#e5f9ed",
+    color: "#15803d",
+  },
+
+  chipDanger: {
+    backgroundColor: "#fee2e2",
+    color: "#b91c1c",
+  },
+
+  actions: {
+    display: "flex",
+    gap: "8px",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    marginBottom: "14px",
+  },
+
+  editButton: {
+    padding: "8px 14px",
+    border: "none",
+    borderRadius: "10px",
+    backgroundColor: "#60a5fa",
+    color: "#ffffff",
+    fontWeight: "700",
+    fontSize: "12px",
+    cursor: "pointer",
+    boxShadow: "0 6px 14px rgba(96, 165, 250, 0.25)",
+  },
+
+  deleteButton: {
+    padding: "8px 14px",
+    border: "none",
+    borderRadius: "10px",
+    backgroundColor: "#ef4444",
+    color: "#ffffff",
+    fontWeight: "700",
+    fontSize: "12px",
+    cursor: "pointer",
+  },
+
+  footerInfo: {
+    width: "100%",
+    marginTop: "auto",
+    borderTop: "1px solid #f1f5f9",
+    paddingTop: "12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  },
+
+  footerLine: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: "8px",
+  },
+
+  footerLabel: {
+    fontSize: "11px",
+    color: "#6b7280",
+    fontWeight: "700",
+    flexShrink: 0,
+  },
+
+  footerValue: {
+    fontSize: "11px",
+    color: "#374151",
+    textAlign: "right",
+    wordBreak: "break-word",
+  },
+
   messageCard: {
     backgroundColor: "#ffffff",
-    borderRadius: "14px",
+    borderRadius: "18px",
     padding: "30px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+    border: "1px solid #edf1f5",
   },
+
   messageText: {
     fontSize: "15px",
     color: "#374151",
+    margin: 0,
   },
+
   errorText: {
     fontSize: "15px",
     color: "#b91c1c",
-    fontWeight: "bold",
+    fontWeight: "700",
+    margin: 0,
   },
 };

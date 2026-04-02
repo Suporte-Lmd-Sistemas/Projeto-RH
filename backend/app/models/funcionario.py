@@ -9,4 +9,14 @@ class Funcionario(Base):
 
     col_pessoa = Column(Integer, nullable=False, unique=True)
 
-    departamento_id = Column(Integer, ForeignKey("rh_departamentos.id"), nullable=False)
+    departamento_id = Column(
+        Integer,
+        ForeignKey("rh_departamentos.id"),
+        nullable=False
+    )
+
+    cargo_id = Column(
+        Integer,
+        ForeignKey("rh_cargos.id"),
+        nullable=True
+    )

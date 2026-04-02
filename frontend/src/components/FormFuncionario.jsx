@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 const estadoInicial = {
   nome: "",
   cpf: "",
-  cargo_id: "",
+  cargo_oficial: "",
+  status: "",
   departamento_id: "",
-  status: "Ativo",
+  cargo_id: "",
 };
 
 function aplicarMascaraCPF(valor) {
@@ -27,8 +28,8 @@ export default function FormFuncionario({
   onCancelar,
   onSalvar,
   funcionarioEdicao,
-  cargos = [],
   setores = [],
+  cargos = [],
 }) {
   const [form, setForm] = useState(estadoInicial);
   const [saving, setSaving] = useState(false);
@@ -38,9 +39,10 @@ export default function FormFuncionario({
       setForm({
         nome: funcionarioEdicao.nome || "",
         cpf: funcionarioEdicao.cpf || "",
-        cargo_id: funcionarioEdicao.cargo_id ?? "",
+        cargo_oficial: funcionarioEdicao.cargo_oficial || "",
+        status: funcionarioEdicao.status || "",
         departamento_id: funcionarioEdicao.departamento_id ?? "",
-        status: funcionarioEdicao.status || "Ativo",
+        cargo_id: funcionarioEdicao.cargo_rh_id ?? "",
       });
     } else {
       setForm(estadoInicial);
@@ -50,35 +52,14 @@ export default function FormFuncionario({
   function handleChange(e) {
     const { name, value } = e.target;
 
-    let novoValor = value;
-
-    if (name === "cpf") {
-      novoValor = aplicarMascaraCPF(value);
-    }
-
     setForm((prev) => ({
       ...prev,
-      [name]: novoValor,
+      [name]: value,
     }));
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-
-    if (!form.nome.trim()) {
-      alert("Preencha o nome do funcionário.");
-      return;
-    }
-
-    if (!form.cpf.trim()) {
-      alert("Preencha o CPF.");
-      return;
-    }
-
-    if (!String(form.cargo_id).trim()) {
-      alert("Selecione o cargo.");
-      return;
-    }
 
     if (!String(form.departamento_id).trim()) {
       alert("Selecione o setor.");
@@ -87,7 +68,13 @@ export default function FormFuncionario({
 
     try {
       setSaving(true);
-      await onSalvar(form);
+
+      await onSalvar({
+        departamento_id: Number(form.departamento_id),
+        cargo_id: String(form.cargo_id).trim()
+          ? Number(form.cargo_id)
+          : null,
+      });
     } finally {
       setSaving(false);
     }
@@ -96,93 +83,113 @@ export default function FormFuncionario({
   return (
     <div style={styles.card}>
       <div style={styles.header}>
-        <h2 style={styles.title}>
-          {funcionarioEdicao ? "Editar Funcionário" : "Novo Funcionário"}
-        </h2>
+        <h2 style={styles.title}>Editar Funcionário</h2>
         <p style={styles.subtitle}>
-          {funcionarioEdicao
-            ? "Altere os dados abaixo para atualizar o cadastro."
-            : "Preencha os dados abaixo para cadastrar."}
+          Os dados pessoais vêm do ERP. No RH você pode ajustar cargo interno e
+          setor.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} style={styles.form}>
-        <div style={styles.grid}>
-          <div style={styles.fieldFull}>
-            <label style={styles.label}>Nome</label>
-            <input
-              type="text"
-              name="nome"
-              value={form.nome}
-              onChange={handleChange}
-              style={styles.input}
-              placeholder="Digite o nome completo"
-            />
-          </div>
+        {/* DADOS DO ERP */}
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>Dados do ERP</div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>CPF</label>
-            <input
-              type="text"
-              name="cpf"
-              value={form.cpf}
-              onChange={handleChange}
-              style={styles.input}
-              placeholder="000.000.000-00"
-            />
-          </div>
+          <div style={styles.grid}>
+            <div style={styles.fieldFull}>
+              <label style={styles.label}>Nome</label>
+              <input
+                type="text"
+                name="nome"
+                value={form.nome}
+                style={styles.inputDisabled}
+                disabled
+              />
+            </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Status</label>
-            <select
-              name="status"
-              value={form.status}
-              onChange={handleChange}
-              style={styles.input}
-            >
-              <option value="Ativo">Ativo</option>
-              <option value="Inativo">Inativo</option>
-            </select>
-          </div>
+            <div style={styles.field}>
+              <label style={styles.label}>CPF</label>
+              <input
+                type="text"
+                name="cpf"
+                value={aplicarMascaraCPF(form.cpf)}
+                style={styles.inputDisabled}
+                disabled
+              />
+            </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Cargo</label>
-            <select
-              name="cargo_id"
-              value={form.cargo_id}
-              onChange={handleChange}
-              style={styles.input}
-            >
-              <option value="">Selecione um cargo</option>
-              {cargos.map((cargo, index) => (
-                <option
-                  key={cargo.id ?? cargo.value ?? index}
-                  value={cargo.id ?? ""}
-                >
-                  {cargo.nome}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div style={styles.field}>
+              <label style={styles.label}>Status ERP</label>
+              <input
+                type="text"
+                name="status"
+                value={form.status || ""}
+                style={styles.inputDisabled}
+                disabled
+              />
+            </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Setor</label>
-            <select
-              name="departamento_id"
-              value={form.departamento_id}
-              onChange={handleChange}
-              style={styles.input}
-            >
-              <option value="">Selecione um setor</option>
-              {setores.map((setor, index) => (
-                <option
-                  key={setor.id ?? setor.value ?? index}
-                  value={setor.id ?? ""}
-                >
-                  {setor.nome}
-                </option>
-              ))}
-            </select>
+            <div style={styles.field}>
+              <label style={styles.label}>Cargo Oficial ERP</label>
+              <input
+                type="text"
+                name="cargo_oficial"
+                value={form.cargo_oficial || ""}
+                style={styles.inputDisabled}
+                disabled
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* DADOS DO RH */}
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>Vínculo no RH</div>
+
+          <div style={styles.grid}>
+            <div style={styles.field}>
+              <label style={styles.label}>Cargo RH</label>
+
+              <select
+                name="cargo_id"
+                value={form.cargo_id}
+                onChange={handleChange}
+                style={styles.input}
+              >
+                <option value="">Sem cargo RH</option>
+
+                {cargos.map((cargo, index) => (
+                  <option
+                    key={cargo.id ?? cargo.value ?? index}
+                    value={cargo.id ?? ""}
+                  >
+                    {cargo.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={styles.field}>
+              <label style={styles.label}>Setor (Departamento RH)</label>
+
+              <select
+                name="departamento_id"
+                value={form.departamento_id}
+                onChange={handleChange}
+                style={styles.input}
+              >
+                <option value="">Selecione um setor</option>
+
+                {setores.map((setor, index) => (
+                  <option
+                    key={setor.id ?? setor.value ?? index}
+                    value={setor.id ?? ""}
+                  >
+                    {setor.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -192,11 +199,7 @@ export default function FormFuncionario({
           </button>
 
           <button type="submit" disabled={saving} style={styles.saveButton}>
-            {saving
-              ? "Salvando..."
-              : funcionarioEdicao
-              ? "Salvar Alterações"
-              : "Salvar Funcionário"}
+            {saving ? "Salvando..." : "Salvar Alterações"}
           </button>
         </div>
       </form>
@@ -207,48 +210,72 @@ export default function FormFuncionario({
 const styles = {
   card: {
     backgroundColor: "#ffffff",
-    borderRadius: "14px",
-    padding: "24px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+    borderRadius: "18px",
+    padding: "28px",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
+    border: "1px solid #e5e7eb",
   },
+
   header: {
-    marginBottom: "24px",
+    marginBottom: "28px",
   },
+
   title: {
-    fontSize: "22px",
+    fontSize: "24px",
     marginBottom: "6px",
     color: "#111827",
+    fontWeight: "700",
   },
+
   subtitle: {
     fontSize: "14px",
     color: "#6b7280",
   },
+
   form: {
     display: "flex",
     flexDirection: "column",
-    gap: "20px",
+    gap: "28px",
   },
+
+  section: {
+    border: "1px solid #f1f5f9",
+    borderRadius: "14px",
+    padding: "20px",
+  },
+
+  sectionTitle: {
+    fontSize: "14px",
+    fontWeight: "700",
+    color: "#374151",
+    marginBottom: "16px",
+  },
+
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
     gap: "18px",
   },
+
   field: {
     display: "flex",
     flexDirection: "column",
     gap: "8px",
   },
+
   fieldFull: {
     display: "flex",
     flexDirection: "column",
     gap: "8px",
     gridColumn: "1 / -1",
   },
+
   label: {
-    fontSize: "14px",
-    fontWeight: "bold",
+    fontSize: "13px",
+    fontWeight: "700",
     color: "#374151",
   },
+
   input: {
     padding: "12px 14px",
     border: "1px solid #d1d5db",
@@ -256,28 +283,39 @@ const styles = {
     outline: "none",
     backgroundColor: "#fff",
   },
+
+  inputDisabled: {
+    padding: "12px 14px",
+    border: "1px solid #e5e7eb",
+    borderRadius: "10px",
+    backgroundColor: "#f3f4f6",
+    color: "#6b7280",
+  },
+
   actions: {
     display: "flex",
     justifyContent: "flex-end",
     gap: "12px",
     flexWrap: "wrap",
   },
+
   cancelButton: {
     padding: "12px 18px",
     border: "1px solid #d1d5db",
     borderRadius: "10px",
     backgroundColor: "#ffffff",
     color: "#374151",
-    fontWeight: "bold",
+    fontWeight: "700",
     cursor: "pointer",
   },
+
   saveButton: {
-    padding: "12px 18px",
+    padding: "12px 20px",
     border: "none",
     borderRadius: "10px",
-    backgroundColor: "#2563eb",
+    backgroundColor: "#60a5fa",
     color: "#ffffff",
-    fontWeight: "bold",
+    fontWeight: "700",
     cursor: "pointer",
   },
 };

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
@@ -6,13 +6,100 @@ from app.database.session import get_db
 from app.database.erp_connection import get_erp_db
 from app.models.funcionario import Funcionario
 from app.models.departamento import Departamento
+from app.models.cargo import Cargo
+from app.schemas.funcionario import FuncionarioCreate, FuncionarioUpdate
 
 router = APIRouter(prefix="/funcionarios", tags=["Funcionários"])
 
 
+def obter_dados_update(schema_obj):
+    if hasattr(schema_obj, "model_dump"):
+        return schema_obj.model_dump(exclude_unset=True)
+    return schema_obj.dict(exclude_unset=True)
+
+
+@router.get("/erp-disponiveis")
+def listar_colaboradores_erp_disponiveis(
+    search: str = Query(default=""),
+    limit: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    erp_db: Session = Depends(get_erp_db)
+):
+    funcionarios_rh = db.query(Funcionario.col_pessoa).all()
+    col_pessoas_vinculados = {item[0] for item in funcionarios_rh}
+
+    search_limpo = (search or "").strip().lower()
+
+    query_erp = text("""
+        SELECT
+            c.COL_PESSOA,
+            c.COL_FUNCAO,
+            c.COL_STATUS,
+            c.COL_DATA_ADMISSAO,
+            p.PES_RSOCIAL_NOME,
+            p.PES_CNPJ_CPF,
+            p.PES_EMAIL,
+            p.PES_TELEFONE,
+            p.PES_CELULAR
+        FROM TB_COLABORADOR c
+        JOIN TB_PESSOA p
+          ON p.PES_ID = c.COL_PESSOA
+        ORDER BY p.PES_RSOCIAL_NOME
+    """)
+
+    colaboradores = erp_db.execute(query_erp).fetchall()
+
+    resultado = []
+
+    for colaborador in colaboradores:
+        col_pessoa = colaborador[0]
+
+        if col_pessoa in col_pessoas_vinculados:
+            continue
+
+        nome = str(colaborador[4]) if colaborador[4] is not None else ""
+        cpf = str(colaborador[5]) if colaborador[5] is not None else ""
+        cargo = str(colaborador[1]) if colaborador[1] is not None else ""
+        status = str(colaborador[2]) if colaborador[2] is not None else ""
+
+        if search_limpo:
+            busca_texto = f"{nome} {cpf} {cargo} {status}".lower()
+            if search_limpo not in busca_texto:
+                continue
+
+        resultado.append({
+            "col_pessoa": col_pessoa,
+            "nome": nome,
+            "cpf": cpf,
+            "cargo_oficial": cargo,
+            "status": status,
+            "data_admissao": str(colaborador[3]) if colaborador[3] else None,
+            "email": colaborador[6],
+            "telefone": colaborador[7],
+            "celular": colaborador[8],
+        })
+
+        if len(resultado) >= limit:
+            break
+
+    return resultado
+
+
 @router.get("/")
-def listar_funcionarios(db: Session = Depends(get_db), erp_db: Session = Depends(get_erp_db)):
-    funcionarios = db.query(Funcionario).all()
+def listar_funcionarios(
+    nome: str = "",
+    departamento_id: int | None = None,
+    status: str = "",
+    cargo: str = "",
+    db: Session = Depends(get_db),
+    erp_db: Session = Depends(get_erp_db)
+):
+    query_rh = db.query(Funcionario)
+
+    if departamento_id is not None:
+        query_rh = query_rh.filter(Funcionario.departamento_id == departamento_id)
+
+    funcionarios = query_rh.all()
 
     resultado = []
 
@@ -21,7 +108,13 @@ def listar_funcionarios(db: Session = Depends(get_db), erp_db: Session = Depends
             Departamento.id == funcionario.departamento_id
         ).first()
 
-        query = text("""
+        cargo_rh = None
+        if funcionario.cargo_id is not None:
+            cargo_rh = db.query(Cargo).filter(
+                Cargo.id == funcionario.cargo_id
+            ).first()
+
+        query_erp = text("""
             SELECT
                 c.COL_PESSOA,
                 c.COL_FUNCAO,
@@ -41,27 +134,44 @@ def listar_funcionarios(db: Session = Depends(get_db), erp_db: Session = Depends
         """)
 
         colaborador = erp_db.execute(
-            query,
+            query_erp,
             {"col_pessoa": funcionario.col_pessoa}
         ).fetchone()
 
-        if colaborador:
-            resultado.append({
-                "rh_id": funcionario.id,
-                "col_pessoa": funcionario.col_pessoa,
-                "nome": colaborador[6],
-                "cpf": colaborador[7],
-                "email": colaborador[8],
-                "telefone": colaborador[9],
-                "celular": colaborador[10],
-                "cargo_oficial": colaborador[1],
-                "status": colaborador[2],
-                "salario": float(colaborador[3]) if colaborador[3] is not None else None,
-                "data_admissao": str(colaborador[4]) if colaborador[4] else None,
-                "data_afastamento": str(colaborador[5]) if colaborador[5] else None,
-                "departamento_id": funcionario.departamento_id,
-                "departamento_nome": departamento.nome if departamento else None
-            })
+        if not colaborador:
+            continue
+
+        nome_erp = str(colaborador[6]) if colaborador[6] is not None else ""
+        cargo_erp = str(colaborador[1]) if colaborador[1] is not None else ""
+        status_erp = str(colaborador[2]) if colaborador[2] is not None else ""
+
+        if nome and nome.lower() not in nome_erp.lower():
+            continue
+
+        if cargo and cargo.lower() not in cargo_erp.lower():
+            continue
+
+        if status and status.lower() not in status_erp.lower():
+            continue
+
+        resultado.append({
+            "rh_id": funcionario.id,
+            "col_pessoa": funcionario.col_pessoa,
+            "nome": nome_erp,
+            "cpf": colaborador[7],
+            "email": colaborador[8],
+            "telefone": colaborador[9],
+            "celular": colaborador[10],
+            "cargo_oficial": cargo_erp,
+            "cargo_rh_id": funcionario.cargo_id,
+            "cargo_rh_nome": cargo_rh.nome if cargo_rh else None,
+            "status": status_erp,
+            "salario": float(colaborador[3]) if colaborador[3] is not None else None,
+            "data_admissao": str(colaborador[4]) if colaborador[4] else None,
+            "data_afastamento": str(colaborador[5]) if colaborador[5] else None,
+            "departamento_id": funcionario.departamento_id,
+            "departamento_nome": departamento.nome if departamento else None
+        })
 
     return resultado
 
@@ -75,13 +185,19 @@ def detalhar_funcionario(
     funcionario = db.query(Funcionario).filter(Funcionario.id == rh_id).first()
 
     if not funcionario:
-        return {"erro": "Funcionário não encontrado no RH."}
+        raise HTTPException(status_code=404, detail="Funcionário não encontrado no RH.")
 
     departamento = db.query(Departamento).filter(
         Departamento.id == funcionario.departamento_id
     ).first()
 
-    query = text("""
+    cargo_rh = None
+    if funcionario.cargo_id is not None:
+        cargo_rh = db.query(Cargo).filter(
+            Cargo.id == funcionario.cargo_id
+        ).first()
+
+    query_erp = text("""
         SELECT
             c.COL_EMPRESA,
             c.COL_FUNCAO,
@@ -147,18 +263,20 @@ def detalhar_funcionario(
     """)
 
     colaborador = erp_db.execute(
-        query,
+        query_erp,
         {"col_pessoa": funcionario.col_pessoa}
     ).fetchone()
 
     if not colaborador:
-        return {"erro": "Colaborador vinculado não encontrado no ERP."}
+        raise HTTPException(status_code=404, detail="Colaborador vinculado não encontrado no ERP.")
 
     return {
         "rh_id": funcionario.id,
         "col_pessoa": funcionario.col_pessoa,
         "departamento_id": funcionario.departamento_id,
         "departamento_nome": departamento.nome if departamento else None,
+        "cargo_rh_id": funcionario.cargo_id,
+        "cargo_rh_nome": cargo_rh.nome if cargo_rh else None,
         "cargo_oficial": colaborador[1],
         "data_admissao_oficial": str(colaborador[15]) if colaborador[15] else None,
         "salario_oficial": float(colaborador[24]) if colaborador[24] is not None else None,
@@ -226,87 +344,143 @@ def detalhar_funcionario(
     }
 
 
-@router.get("/")
-def listar_funcionarios(
-    nome: str = "",
-    departamento_id: int | None = None,
-    status: str = "",
-    cargo: str = "",
+@router.post("/")
+def criar_vinculo_funcionario(
+    dados: FuncionarioCreate,
     db: Session = Depends(get_db),
     erp_db: Session = Depends(get_erp_db)
 ):
-    query_rh = db.query(Funcionario)
+    departamento = db.query(Departamento).filter(
+        Departamento.id == dados.departamento_id
+    ).first()
 
-    if departamento_id is not None:
-        query_rh = query_rh.filter(Funcionario.departamento_id == departamento_id)
+    if not departamento:
+        raise HTTPException(status_code=404, detail="Departamento não encontrado no RH.")
 
-    funcionarios = query_rh.all()
+    cargo = None
+    if dados.cargo_id is not None:
+        cargo = db.query(Cargo).filter(Cargo.id == dados.cargo_id).first()
 
-    resultado = []
+        if not cargo:
+            raise HTTPException(status_code=404, detail="Cargo não encontrado no RH.")
 
-    for funcionario in funcionarios:
+    funcionario_existente = db.query(Funcionario).filter(
+        Funcionario.col_pessoa == dados.col_pessoa
+    ).first()
+
+    if funcionario_existente:
+        raise HTTPException(
+            status_code=400,
+            detail="Este colaborador já está vinculado no RH."
+        )
+
+    query_erp = text("""
+        SELECT
+            c.COL_PESSOA,
+            p.PES_RSOCIAL_NOME
+        FROM TB_COLABORADOR c
+        JOIN TB_PESSOA p
+          ON p.PES_ID = c.COL_PESSOA
+        WHERE c.COL_PESSOA = :col_pessoa
+    """)
+
+    colaborador_erp = erp_db.execute(
+        query_erp,
+        {"col_pessoa": dados.col_pessoa}
+    ).fetchone()
+
+    if not colaborador_erp:
+        raise HTTPException(
+            status_code=404,
+            detail="Colaborador não encontrado no ERP."
+        )
+
+    novo_funcionario = Funcionario(
+        col_pessoa=dados.col_pessoa,
+        departamento_id=dados.departamento_id,
+        cargo_id=dados.cargo_id
+    )
+
+    db.add(novo_funcionario)
+    db.commit()
+    db.refresh(novo_funcionario)
+
+    return {
+        "mensagem": "Vínculo do colaborador criado no RH com sucesso.",
+        "funcionario": {
+            "rh_id": novo_funcionario.id,
+            "col_pessoa": novo_funcionario.col_pessoa,
+            "departamento_id": novo_funcionario.departamento_id,
+            "departamento_nome": departamento.nome,
+            "cargo_id": novo_funcionario.cargo_id,
+            "cargo_nome": cargo.nome if cargo else None,
+            "nome": colaborador_erp[1]
+        }
+    }
+
+
+@router.put("/{rh_id}")
+def atualizar_vinculo_funcionario(
+    rh_id: int,
+    dados: FuncionarioUpdate,
+    db: Session = Depends(get_db)
+):
+    funcionario = db.query(Funcionario).filter(Funcionario.id == rh_id).first()
+
+    if not funcionario:
+        raise HTTPException(status_code=404, detail="Funcionário não encontrado no RH.")
+
+    dados_update = obter_dados_update(dados)
+
+    if "departamento_id" in dados_update:
         departamento = db.query(Departamento).filter(
-            Departamento.id == funcionario.departamento_id
+            Departamento.id == dados_update["departamento_id"]
         ).first()
 
-        query = text("""
-            SELECT
-                c.COL_PESSOA,
-                c.COL_FUNCAO,
-                c.COL_STATUS,
-                c.COL_SALARIO_VALOR,
-                c.COL_DATA_ADMISSAO,
-                c.COL_DATA_AFASTAMENTO,
-                p.PES_RSOCIAL_NOME,
-                p.PES_CNPJ_CPF,
-                p.PES_EMAIL,
-                p.PES_TELEFONE,
-                p.PES_CELULAR
-            FROM TB_COLABORADOR c
-            JOIN TB_PESSOA p
-              ON p.PES_ID = c.COL_PESSOA
-            WHERE c.COL_PESSOA = :col_pessoa
-        """)
+        if not departamento:
+            raise HTTPException(status_code=404, detail="Departamento não encontrado no RH.")
 
-        colaborador = erp_db.execute(
-            query,
-            {"col_pessoa": funcionario.col_pessoa}
-        ).fetchone()
+        funcionario.departamento_id = dados_update["departamento_id"]
 
-        if not colaborador:
-            continue
+    cargo = None
 
-        nome_erp = str(colaborador[6]) if colaborador[6] is not None else ""
-        cargo_erp = str(colaborador[1]) if colaborador[1] is not None else ""
-        status_erp = str(colaborador[2]) if colaborador[2] is not None else ""
+    if "cargo_id" in dados_update:
+        cargo_id = dados_update["cargo_id"]
 
-        if nome and nome.lower() not in nome_erp.lower():
-            continue
+        if cargo_id is None:
+            funcionario.cargo_id = None
+        else:
+            cargo = db.query(Cargo).filter(Cargo.id == cargo_id).first()
 
-        if cargo and cargo.lower() not in cargo_erp.lower():
-            continue
+            if not cargo:
+                raise HTTPException(status_code=404, detail="Cargo não encontrado no RH.")
 
-        if status and status.lower() not in status_erp.lower():
-            continue
+            funcionario.cargo_id = cargo_id
 
-        resultado.append({
+    db.commit()
+    db.refresh(funcionario)
+
+    departamento_atual = db.query(Departamento).filter(
+        Departamento.id == funcionario.departamento_id
+    ).first()
+
+    cargo_atual = None
+    if funcionario.cargo_id is not None:
+        cargo_atual = db.query(Cargo).filter(
+            Cargo.id == funcionario.cargo_id
+        ).first()
+
+    return {
+        "mensagem": "Vínculo do funcionário atualizado com sucesso.",
+        "funcionario": {
             "rh_id": funcionario.id,
             "col_pessoa": funcionario.col_pessoa,
-            "nome": nome_erp,
-            "cpf": colaborador[7],
-            "email": colaborador[8],
-            "telefone": colaborador[9],
-            "celular": colaborador[10],
-            "cargo_oficial": cargo_erp,
-            "status": status_erp,
-            "salario": float(colaborador[3]) if colaborador[3] is not None else None,
-            "data_admissao": str(colaborador[4]) if colaborador[4] else None,
-            "data_afastamento": str(colaborador[5]) if colaborador[5] else None,
             "departamento_id": funcionario.departamento_id,
-            "departamento_nome": departamento.nome if departamento else None
-        })
-
-    return resultado
+            "departamento_nome": departamento_atual.nome if departamento_atual else None,
+            "cargo_id": funcionario.cargo_id,
+            "cargo_nome": cargo_atual.nome if cargo_atual else None
+        }
+    }
 
 
 @router.delete("/{rh_id}")
@@ -317,7 +491,7 @@ def remover_funcionario_rh(
     funcionario = db.query(Funcionario).filter(Funcionario.id == rh_id).first()
 
     if not funcionario:
-        return {"erro": "Funcionário não encontrado no RH."}
+        raise HTTPException(status_code=404, detail="Funcionário não encontrado no RH.")
 
     db.delete(funcionario)
     db.commit()
