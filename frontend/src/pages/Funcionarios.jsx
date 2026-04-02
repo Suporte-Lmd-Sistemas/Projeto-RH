@@ -17,6 +17,8 @@ import {
   listarCargos,
 } from "../services/funcionariosService";
 
+const ITENS_POR_PAGINA = 8;
+
 export default function Funcionarios() {
   const [search, setSearch] = useState("");
   const [modo, setModo] = useState("lista");
@@ -31,6 +33,11 @@ export default function Funcionarios() {
   const [modalVinculoAberto, setModalVinculoAberto] = useState(false);
   const [colaboradoresERP, setColaboradoresERP] = useState([]);
 
+  const [filtroDepartamento, setFiltroDepartamento] = useState("");
+  const [filtroSetor, setFiltroSetor] = useState("");
+  const [ordenacao, setOrdenacao] = useState("nome_asc");
+  const [paginaAtual, setPaginaAtual] = useState(1);
+
   const [alerta, setAlerta] = useState({
     tipo: "",
     mensagem: "",
@@ -42,6 +49,10 @@ export default function Funcionarios() {
     carregarFuncionarios();
     carregarListasAuxiliares();
   }, []);
+
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [search, filtroDepartamento, filtroSetor, ordenacao]);
 
   async function carregarFuncionarios() {
     try {
@@ -61,6 +72,8 @@ export default function Funcionarios() {
         cargo_rh_id: item.cargo_rh_id ?? "",
         cargo_rh_nome: item.cargo_rh_nome ?? "",
         setor: item.departamento_nome ?? item.setor ?? "",
+        setor_nome: item.setor_nome ?? item.setor ?? "",
+        departamento_nome: item.departamento_nome ?? "",
         departamento_id: item.departamento_id ?? "",
         status: item.status ?? "Ativo",
         email: item.email ?? "",
@@ -69,6 +82,12 @@ export default function Funcionarios() {
         salario: item.salario ?? null,
         data_admissao: item.data_admissao ?? null,
         data_afastamento: item.data_afastamento ?? null,
+        foto:
+          item.pes_foto ??
+          item.foto ??
+          item.foto_url ??
+          item.erp_foto ??
+          null,
       }));
 
       setFuncionarios(listaFormatada);
@@ -138,11 +157,119 @@ export default function Funcionarios() {
     }
   }, []);
 
-  const funcionariosFiltrados = useMemo(() => {
-    return funcionarios.filter((f) =>
-      String(f.nome || "").toLowerCase().includes(search.toLowerCase())
+  const opcoesDepartamentos = useMemo(() => {
+    const mapa = new Map();
+
+    funcionarios.forEach((item) => {
+      const value = String(item.departamento_nome || "").trim();
+      if (value) {
+        mapa.set(value, { value, label: value });
+      }
+    });
+
+    setores.forEach((item) => {
+      const value = String(item.nome || "").trim();
+      if (value && !mapa.has(value)) {
+        mapa.set(value, { value, label: value });
+      }
+    });
+
+    return Array.from(mapa.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, "pt-BR")
     );
-  }, [funcionarios, search]);
+  }, [funcionarios, setores]);
+
+  const opcoesSetores = useMemo(() => {
+    const mapa = new Map();
+
+    funcionarios.forEach((item) => {
+      const value = String(item.setor_nome || item.setor || "").trim();
+      if (value) {
+        mapa.set(value, { value, label: value });
+      }
+    });
+
+    return Array.from(mapa.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, "pt-BR")
+    );
+  }, [funcionarios]);
+
+  const funcionariosFiltradosOrdenados = useMemo(() => {
+    const textoBusca = String(search || "").toLowerCase().trim();
+
+    const listaFiltrada = funcionarios.filter((f) => {
+      const nome = String(f.nome || "").toLowerCase();
+      const cpf = String(f.cpf || "").toLowerCase();
+      const cargoERP = String(f.cargo_oficial || "").toLowerCase();
+      const cargoRH = String(f.cargo_rh_nome || "").toLowerCase();
+      const status = String(f.status || "").toLowerCase();
+      const departamentoNome = String(f.departamento_nome || "").trim();
+      const setorNome = String(f.setor_nome || f.setor || "").trim();
+
+      const passouBusca =
+        !textoBusca ||
+        nome.includes(textoBusca) ||
+        cpf.includes(textoBusca) ||
+        cargoERP.includes(textoBusca) ||
+        cargoRH.includes(textoBusca) ||
+        status.includes(textoBusca);
+
+      const passouDepartamento =
+        !filtroDepartamento || departamentoNome === filtroDepartamento;
+
+      const passouSetor = !filtroSetor || setorNome === filtroSetor;
+
+      return passouBusca && passouDepartamento && passouSetor;
+    });
+
+    const listaOrdenada = [...listaFiltrada].sort((a, b) => {
+      const nomeA = String(a.nome || "");
+      const nomeB = String(b.nome || "");
+      const statusA = String(a.status || "");
+      const statusB = String(b.status || "");
+      const departamentoA = String(a.departamento_nome || "");
+      const departamentoB = String(b.departamento_nome || "");
+      const setorA = String(a.setor_nome || a.setor || "");
+      const setorB = String(b.setor_nome || b.setor || "");
+
+      switch (ordenacao) {
+        case "nome_desc":
+          return nomeB.localeCompare(nomeA, "pt-BR");
+
+        case "status_asc":
+          return statusA.localeCompare(statusB, "pt-BR");
+
+        case "departamento_asc":
+          return departamentoA.localeCompare(departamentoB, "pt-BR");
+
+        case "setor_asc":
+          return setorA.localeCompare(setorB, "pt-BR");
+
+        case "nome_asc":
+        default:
+          return nomeA.localeCompare(nomeB, "pt-BR");
+      }
+    });
+
+    return listaOrdenada;
+  }, [funcionarios, search, filtroDepartamento, filtroSetor, ordenacao]);
+
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(funcionariosFiltradosOrdenados.length / ITENS_POR_PAGINA)
+  );
+
+  const funcionariosPaginados = useMemo(() => {
+    const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
+    const fim = inicio + ITENS_POR_PAGINA;
+    return funcionariosFiltradosOrdenados.slice(inicio, fim);
+  }, [funcionariosFiltradosOrdenados, paginaAtual]);
+
+  useEffect(() => {
+    if (paginaAtual > totalPaginas) {
+      setPaginaAtual(totalPaginas);
+    }
+  }, [paginaAtual, totalPaginas]);
 
   function mostrarAlerta(tipo, mensagem) {
     setAlerta({ tipo, mensagem });
@@ -279,6 +406,22 @@ export default function Funcionarios() {
     }
   }
 
+  function paginaAnterior() {
+    setPaginaAtual((pagina) => Math.max(1, pagina - 1));
+  }
+
+  function proximaPagina() {
+    setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1));
+  }
+
+  const totalResultados = funcionariosFiltradosOrdenados.length;
+  const inicioResultado =
+    totalResultados === 0 ? 0 : (paginaAtual - 1) * ITENS_POR_PAGINA + 1;
+  const fimResultado = Math.min(
+    paginaAtual * ITENS_POR_PAGINA,
+    totalResultados
+  );
+
   return (
     <Layout title={modo === "lista" ? "Funcionários" : "Editar Funcionário"}>
       <div style={styles.pageContent}>
@@ -295,18 +438,66 @@ export default function Funcionarios() {
                 search={search}
                 setSearch={setSearch}
                 onNovo={handleNovoFuncionario}
+                filtroDepartamento={filtroDepartamento}
+                setFiltroDepartamento={setFiltroDepartamento}
+                opcoesDepartamentos={opcoesDepartamentos}
+                filtroSetor={filtroSetor}
+                setFiltroSetor={setFiltroSetor}
+                opcoesSetores={opcoesSetores}
+                ordenacao={ordenacao}
+                setOrdenacao={setOrdenacao}
               />
             </div>
 
             <div style={styles.resultadoContainer}>
               <TabelaFuncionarios
-                funcionarios={funcionariosFiltrados}
+                funcionarios={funcionariosPaginados}
                 loading={loading}
                 error={error}
                 onEditar={handleEditarFuncionario}
                 onExcluir={handleExcluirFuncionario}
               />
             </div>
+
+            {!loading && !error && (
+              <div style={styles.paginationBar}>
+                <div style={styles.paginationInfo}>
+                  Mostrando {inicioResultado} a {fimResultado} de {totalResultados} resultado(s)
+                </div>
+
+                <div style={styles.paginationActions}>
+                  <button
+                    type="button"
+                    onClick={paginaAnterior}
+                    disabled={paginaAtual === 1}
+                    style={{
+                      ...styles.pageButton,
+                      ...(paginaAtual === 1 ? styles.pageButtonDisabled : {}),
+                    }}
+                  >
+                    Anterior
+                  </button>
+
+                  <div style={styles.pageIndicator}>
+                    Página {paginaAtual} de {totalPaginas}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={proximaPagina}
+                    disabled={paginaAtual === totalPaginas}
+                    style={{
+                      ...styles.pageButton,
+                      ...(paginaAtual === totalPaginas
+                        ? styles.pageButtonDisabled
+                        : {}),
+                    }}
+                  >
+                    Próxima
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div style={styles.formContainer}>
@@ -385,6 +576,54 @@ const styles = {
   resultadoContainer: {
     backgroundColor: "transparent",
     minHeight: "200px",
+  },
+
+  paginationBar: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "14px",
+    flexWrap: "wrap",
+    backgroundColor: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "16px",
+    padding: "14px 16px",
+    boxShadow: "0 6px 18px rgba(15, 23, 42, 0.04)",
+  },
+
+  paginationInfo: {
+    fontSize: "13px",
+    color: "#6b7280",
+    fontWeight: "600",
+  },
+
+  paginationActions: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    flexWrap: "wrap",
+  },
+
+  pageIndicator: {
+    fontSize: "13px",
+    fontWeight: "700",
+    color: "#374151",
+    padding: "0 6px",
+  },
+
+  pageButton: {
+    padding: "10px 14px",
+    borderRadius: "10px",
+    border: "1px solid #dbeafe",
+    backgroundColor: "#eff6ff",
+    color: "#2563eb",
+    fontWeight: "700",
+    cursor: "pointer",
+  },
+
+  pageButtonDisabled: {
+    opacity: 0.5,
+    cursor: "not-allowed",
   },
 
   formContainer: {

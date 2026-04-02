@@ -1,3 +1,33 @@
+function obterIniciais(nome) {
+  const texto = String(nome || "").trim();
+
+  if (!texto) {
+    return "FN";
+  }
+
+  const partes = texto.split(/\s+/).filter(Boolean);
+
+  if (partes.length === 1) {
+    return partes[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${partes[0][0] || ""}${partes[1][0] || ""}`.toUpperCase();
+}
+
+function AvatarFuncionario({ nome, foto }) {
+  if (foto) {
+    return (
+      <img
+        src={foto}
+        alt={nome || "Funcionário"}
+        style={styles.avatarImage}
+      />
+    );
+  }
+
+  return <div style={styles.avatarFallback}>{obterIniciais(nome)}</div>;
+}
+
 export default function TabelaFuncionarios({
   funcionarios,
   loading,
@@ -44,7 +74,10 @@ export default function TabelaFuncionarios({
 
           return (
             <div key={funcionario.id} style={styles.card}>
-              <div style={styles.avatar}></div>
+              <AvatarFuncionario
+                nome={funcionario.nome}
+                foto={funcionario.foto}
+              />
 
               <div style={styles.idText}>
                 ID ERP - {funcionario.col_pessoa || funcionario.id || "000"}
@@ -58,7 +91,10 @@ export default function TabelaFuncionarios({
                 <div style={styles.infoRow}>
                   <span style={styles.infoLabel}>Setor</span>
                   <span style={styles.infoValue}>
-                    {funcionario.setor || "-"}
+                    {funcionario.setor_nome ||
+                      funcionario.setor ||
+                      funcionario.departamento_nome ||
+                      "-"}
                   </span>
                 </div>
 
@@ -67,7 +103,10 @@ export default function TabelaFuncionarios({
                 <div style={styles.infoRow}>
                   <span style={styles.infoLabel}>Departamento</span>
                   <span style={styles.infoValue}>
-                    {funcionario.setor || "-"}
+                    {funcionario.departamento_nome ||
+                      funcionario.setor ||
+                      funcionario.setor_nome ||
+                      "-"}
                   </span>
                 </div>
               </div>
@@ -152,13 +191,28 @@ const styles = {
     boxSizing: "border-box",
   },
 
-  avatar: {
-    width: "58px",
-    height: "58px",
+  avatarImage: {
+    width: "62px",
+    height: "62px",
     borderRadius: "999px",
-    backgroundColor: "#e5e7eb",
+    objectFit: "cover",
     marginBottom: "12px",
-    flexShrink: 0,
+    border: "2px solid #dbeafe",
+  },
+
+  avatarFallback: {
+    width: "62px",
+    height: "62px",
+    borderRadius: "999px",
+    backgroundColor: "#dbeafe",
+    color: "#1d4ed8",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: "700",
+    fontSize: "18px",
+    marginBottom: "12px",
+    border: "2px solid #bfdbfe",
   },
 
   idText: {
