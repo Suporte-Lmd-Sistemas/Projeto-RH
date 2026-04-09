@@ -18,6 +18,16 @@ def obter_dados_update(schema_obj):
     return schema_obj.dict(exclude_unset=True)
 
 
+def traduzir_acao(sigla):
+    mapa = {
+        "A": "Alteração",
+        "I": "Inclusão",
+        "E": "Exclusão",
+        "C": "Cancelamento",
+    }
+    return mapa.get(str(sigla).strip().upper(), str(sigla) if sigla is not None else "")
+
+
 @router.get("/erp-disponiveis")
 def listar_colaboradores_erp_disponiveis(
     search: str = Query(default=""),
@@ -174,6 +184,108 @@ def listar_funcionarios(
         })
 
     return resultado
+
+
+@router.get("/{rh_id}/auditoria")
+def listar_auditoria_funcionario(
+    rh_id: int,
+    tipo: str = Query(default=""),
+    data_inicial: str = Query(default=""),
+    data_final: str = Query(default=""),
+    limit: int = Query(default=100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    erp_db: Session = Depends(get_erp_db)
+):
+    funcionario = db.query(Funcionario).filter(Funcionario.id == rh_id).first()
+
+    if not funcionario:
+        raise HTTPException(status_code=404, detail="Funcionário não encontrado no RH.")
+
+    filtros = ["v.VDR_PESSOA = :col_pessoa"]
+    params = {
+        "col_pessoa": funcionario.col_pessoa
+    }
+
+    tipo_limpo = (tipo or "").strip()
+    if tipo_limpo:
+        filtros.append("""
+            (
+                UPPER(COALESCE(a.AUD_TABELA_DESC, '')) LIKE :tipo_like
+                OR UPPER(COALESCE(ai.AUDI_CAMPO_DESC, '')) LIKE :tipo_like
+                OR UPPER(COALESCE(a.AUD_DESC_REGISTRO, '')) LIKE :tipo_like
+            )
+        """)
+        params["tipo_like"] = f"%{tipo_limpo.upper()}%"
+
+    data_inicial_limpa = (data_inicial or "").strip()
+    if data_inicial_limpa:
+        filtros.append("CAST(a.AUD_DT_LANCAMENTO AS DATE) >= CAST(:data_inicial AS DATE)")
+        params["data_inicial"] = data_inicial_limpa
+
+    data_final_limpa = (data_final or "").strip()
+    if data_final_limpa:
+        filtros.append("CAST(a.AUD_DT_LANCAMENTO AS DATE) <= CAST(:data_final AS DATE)")
+        params["data_final"] = data_final_limpa
+
+    where_sql = " AND ".join(filtros)
+
+    query_auditoria = text(f"""
+        SELECT FIRST {limit}
+            a.AUD_USUARIO,
+            a.AUD_ACAO,
+            a.AUD_TABELA_DESC,
+            ai.AUDI_CAMPO_DESC,
+            a.AUD_DESC_REGISTRO,
+            a.AUD_DT_LANCAMENTO,
+            a.AUD_SEQUENCIA,
+            a.AUD_ID_REGISTRO,
+            a.AUD_TABELA,
+            u.USU_ID,
+            u.USU_NOME,
+            u.USU_VENDEDOR,
+            v.VDR_PESSOA
+        FROM TB_AUDITORIA a
+        JOIN TB_AUDITORIA_ITEM ai
+          ON ai.AUDI_AUDITORIA = a.AUD_SEQUENCIA
+        JOIN TB_USUARIO u
+          ON u.USU_ID = a.AUD_USUARIO
+        JOIN TB_VENDEDOR v
+          ON v.VDR_PESSOA = u.USU_VENDEDOR
+        WHERE {where_sql}
+        ORDER BY a.AUD_DT_ACAO DESC, a.AUD_SEQUENCIA DESC
+    """)
+
+    registros = erp_db.execute(query_auditoria, params).fetchall()
+
+    resultado = []
+
+    for registro in registros:
+        resultado.append({
+            "aud_usuario": registro[0],
+            "acao_sigla": registro[1],
+            "acao": traduzir_acao(registro[1]),
+            "tabela_desc": registro[2],
+            "campo_desc": registro[3],
+            "descricao_registro": registro[4],
+            "data_hora": str(registro[5]) if registro[5] else None,
+            "aud_sequencia": registro[6],
+            "aud_id_registro": registro[7],
+            "aud_tabela": registro[8],
+            "usuario_id": registro[9],
+            "usuario_nome": registro[10],
+            "usuario_vendedor": registro[11],
+            "vendedor_pessoa": registro[12],
+        })
+
+    return {
+        "rh_id": funcionario.id,
+        "col_pessoa": funcionario.col_pessoa,
+        "tipo_filtro": tipo_limpo if tipo_limpo else None,
+        "data_inicial": data_inicial_limpa if data_inicial_limpa else None,
+        "data_final": data_final_limpa if data_final_limpa else None,
+        "total": len(resultado),
+        "registros": resultado
+    }
 
 
 @router.get("/{rh_id}")

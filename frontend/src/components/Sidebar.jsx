@@ -1,69 +1,89 @@
-import React from "react";
+import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import "../styles/sidebar.css";
 
-export default function Sidebar() {
+function Sidebar() {
+  const location = useLocation();
+
+  const isDashboardRoute = location.pathname.startsWith("/dashboard");
+  const isVendasRoute = location.pathname === "/dashboard/vendas";
+  const isFinanceiroRoute = location.pathname === "/dashboard/financeiro";
+  const isMultiempresaRoute = location.pathname === "/dashboard/multiempresa";
+  const isRelatoriosRoute = location.pathname === "/relatorios";
+  const isFuncionariosRoute = location.pathname === "/funcionarios";
+  const isPerformanceRoute = location.pathname === "/performance";
+
+  const [dashboardOpen, setDashboardOpen] = useState(isDashboardRoute);
+
+  function toggleDashboard() {
+    setDashboardOpen(!dashboardOpen);
+  }
+
   return (
-    <div style={styles.sidebar}>
-      <div style={styles.logo}>LMD Sistemas</div>
+    <div className="sidebar">
+      <div className="logo">
+        <img src="\logo.png" alt="LMD Sistemas" />
+        <strong></strong>
+      </div>
 
-      <nav style={styles.menu}>
-        <MenuItem label="Dashboard" />
-        <MenuItem label="Inbox" />
-        <MenuItem label="Calendario" />
-        <MenuItem label="Funcionarios" active />
-        <MenuItem label="Performance" />
-        <MenuItem label="Pagamentos" />
-        <MenuItem label="Cargos e Departamentos" />
-        <MenuItem label="Recrutamento" />
+      <nav>
+        <div className="menu-group">
+          <div
+            className={`menu-item ${isDashboardRoute ? "active" : ""}`}
+            onClick={toggleDashboard}
+          >
+            Dashboard
+          </div>
+
+          {dashboardOpen && (
+            <div className="submenu">
+              <Link
+                to="/dashboard/vendas"
+                className={`submenu-item ${isVendasRoute ? "submenu-item-active" : ""}`}
+              >
+                Vendas
+              </Link>
+
+              <Link
+                to="/dashboard/financeiro"
+                className={`submenu-item ${isFinanceiroRoute ? "submenu-item-active" : ""}`}
+              >
+                Financeiro
+              </Link>
+
+              <Link
+                to="/dashboard/multiempresa"
+                className={`submenu-item ${isMultiempresaRoute ? "submenu-item-active" : ""}`}
+              >
+                MultiEmpresa
+              </Link>
+            </div>
+          )}
+        </div>
+
+        <Link
+          to="/relatorios"
+          className={`menu-item ${isRelatoriosRoute ? "active" : ""}`}
+        >
+          Relatórios
+        </Link>
+
+        <Link
+          to="/funcionarios"
+          className={`menu-item ${isFuncionariosRoute ? "active" : ""}`}
+        >
+          Funcionários
+        </Link>
+
+        <Link
+          to="/performance"
+          className={`menu-item ${isPerformanceRoute ? "active" : ""}`}
+        >
+          Performance
+        </Link>
       </nav>
     </div>
   );
 }
 
-function MenuItem({ label, active }) {
-  return (
-    <div
-      style={{
-        ...styles.menuItem,
-        ...(active ? styles.menuItemActive : {})
-      }}
-    >
-      {label}
-    </div>
-  );
-}
-
-const styles = {
-  sidebar: {
-    width: "240px",
-    height: "100vh",
-    background: "#f7f8fa",
-    borderRight: "1px solid #e5e7eb",
-    display: "flex",
-    flexDirection: "column",
-    padding: "20px"
-  },
-
-  logo: {
-    fontWeight: "bold",
-    fontSize: "18px",
-    marginBottom: "30px"
-  },
-
-  menu: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px"
-  },
-
-  menuItem: {
-    padding: "10px 12px",
-    borderRadius: "8px",
-    cursor: "pointer",
-    color: "#333"
-  },
-
-  menuItemActive: {
-    background: "#3b82f6",
-    color: "#fff"
-  }
-};
+export default Sidebar;

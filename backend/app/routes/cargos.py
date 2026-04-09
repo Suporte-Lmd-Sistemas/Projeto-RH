@@ -6,14 +6,15 @@ from app.models.cargo import Cargo
 
 router = APIRouter(prefix="/cargos", tags=["Cargos"])
 
-@router.post("/")
-def criar_cargo(nome: str, descricao: str = "", db: Session = Depends(get_db)):
-    novo = Cargo(nome=nome, descricao=descricao)
-    db.add(novo)
-    db.commit()
-    db.refresh(novo)
-    return novo
 
 @router.get("/")
 def listar_cargos(db: Session = Depends(get_db)):
-    return db.query(Cargo).all()
+    cargos = db.query(Cargo).order_by(Cargo.nome).all()
+
+    return [
+        {
+            "id": cargo.id,
+            "nome": cargo.nome
+        }
+        for cargo in cargos
+    ]

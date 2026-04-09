@@ -6,14 +6,15 @@ from app.models.departamento import Departamento
 
 router = APIRouter(prefix="/departamentos", tags=["Departamentos"])
 
-@router.post("/")
-def criar_departamento(nome: str, descricao: str = "", db: Session = Depends(get_db)):
-    novo = Departamento(nome=nome, descricao=descricao)
-    db.add(novo)
-    db.commit()
-    db.refresh(novo)
-    return novo
 
 @router.get("/")
 def listar_departamentos(db: Session = Depends(get_db)):
-    return db.query(Departamento).all()
+    departamentos = db.query(Departamento).order_by(Departamento.nome).all()
+
+    return [
+        {
+            "id": departamento.id,
+            "nome": departamento.nome
+        }
+        for departamento in departamentos
+    ]

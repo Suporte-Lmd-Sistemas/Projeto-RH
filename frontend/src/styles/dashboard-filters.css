@@ -1,0 +1,74 @@
+.dashboard-filters {
+  background: white;
+  border-radius: 16px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.filters-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  transition: 0.2s;
+}
+
+.filter-btn:hover {
+  background: #eef2ff;
+  border-color: #93c5fd;
+}
+
+.filter-btn.active {
+  background: #e0edff;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+.filters-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.filter-select {
+  border: 1px solid #d1d5db;
+  background: white;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  min-width: 150px;
+}

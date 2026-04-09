@@ -133,14 +133,14 @@ export default function Layout({ title, children }) {
         <div style={styles.logoArea}>
           {!logoErro ? (
             <img
-              src="/logo.png"
+              src="C:\Projetos LMD\rh_app\frontend\src\imagens\LOGO COMPRIDA AZUL A5.svg"
               alt="Logo da empresa"
               style={styles.logoImage}
               onError={() => setLogoErro(true)}
             />
           ) : (
             <div style={styles.logoFallback}>
-              <div style={styles.logoBadge}>LM</div>
+              <div style={styles.logoBadge}></div>
               <div>
                 <div style={styles.logoText}>SISTEMAS</div>
                 <div style={styles.logoSubtext}>RH / Gestão de Pessoas</div>
