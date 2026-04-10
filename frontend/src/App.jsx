@@ -4,6 +4,10 @@ import DashboardVendas from "./pages/DashboardVendas";
 import DashboardFinanceiro from "./pages/DashboardFinanceiro";
 import DashboardMultiEmpresa from "./pages/DashboardMultiEmpresa";
 import Relatorios from "./pages/Relatorios";
+import RelatoriosVendas from "./pages/RelatoriosVendas";
+import RelatoriosFinanceiro from "./pages/RelatoriosFinanceiro";
+import RelatoriosConsultoria from "./pages/RelatoriosConsultoria";
+import RelatoriosDiversos from "./pages/RelatoriosDiversos";
 import Funcionarios from "./pages/Funcionarios";
 import FuncionarioDetalhe from "./pages/FuncionarioDetalhe";
 import FuncionarioAnalise from "./pages/FuncionarioAnalise";
@@ -23,6 +27,10 @@ function App() {
           <Route path="/dashboard/multiempresa" element={<DashboardMultiEmpresa />} />
 
           <Route path="/relatorios" element={<Relatorios />} />
+          <Route path="/relatorios/vendas" element={<RelatoriosVendas />} />
+          <Route path="/relatorios/financeiro" element={<RelatoriosFinanceiro />} />
+          <Route path="/relatorios/consultoria" element={<RelatoriosConsultoria />} />
+          <Route path="/relatorios/diversos" element={<RelatoriosDiversos />} />
 
           <Route path="/funcionarios" element={<Funcionarios />} />
           <Route path="/funcionarios/:id" element={<FuncionarioDetalhe />} />
