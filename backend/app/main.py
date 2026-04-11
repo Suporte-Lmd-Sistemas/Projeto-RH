@@ -12,6 +12,9 @@ from app.routes.erp_colaboradores import router as erp_colaboradores_router
 from app.routes.indicadores import router as indicadores_router
 from app.routes.performance import router as performance_router
 from app.routes.dashboard_financeiro import router as dashboard_financeiro_router
+from app.routes.dashboard_vendas import router as dashboard_vendas_router
+from app.routes.dashboard_funcionarios import router as dashboard_funcionarios_router
+from app.routes.dashboard_auditoria import router as dashboard_auditoria_router
 
 from app.database.create_tables import create_tables
 
@@ -31,7 +34,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    
 )
 
 create_tables()
@@ -47,3 +49,6 @@ app.include_router(erp_colaboradores_router)
 app.include_router(indicadores_router)
 app.include_router(performance_router)
 app.include_router(dashboard_financeiro_router)
+app.include_router(dashboard_vendas_router)
+app.include_router(dashboard_funcionarios_router)
+app.include_router(dashboard_auditoria_router)
