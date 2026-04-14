@@ -1,52 +1,85 @@
 import { useNavigate } from "react-router-dom";
-import "../styles/funcionarios.css";
 
 function FuncionarioCard({ funcionario }) {
   const navigate = useNavigate();
 
-  function abrirAnalise(event) {
-    event.stopPropagation();
+  const nome = funcionario?.nome || "Funcionário sem nome";
+  const rhId = funcionario?.rh_id;
+  const idErp = funcionario?.col_pessoa || "-";
+  const cargoRh = funcionario?.cargo_rh_nome || "Não vinculado";
+  const cargoOficial = funcionario?.cargo_oficial || "Não informado";
+  const departamento = funcionario?.departamento_nome || "Não informado";
+  const status = funcionario?.status || "Sem status";
+  const vendedor = Boolean(funcionario?.vendedor);
 
-    if (!funcionario?.rh_id) {
-      console.error("rh_id do funcionário não encontrado:", funcionario);
+  function abrirAnalise() {
+    if (!rhId) {
+      alert("Este colaborador ainda não possui vínculo RH para análise.");
       return;
     }
 
-    navigate(`/funcionarios/${funcionario.rh_id}/analise`);
+    navigate(`/funcionarios/${rhId}/analise`);
+  }
+
+  function abrirDetalhe() {
+    if (!rhId) {
+      alert("Este colaborador ainda não possui vínculo RH para detalhamento.");
+      return;
+    }
+
+    navigate(`/funcionarios/${rhId}`);
   }
 
   return (
     <div className="funcionario-card">
-      <div className="funcionario-avatar"></div>
+      <div className="funcionario-avatar" />
 
-      <div className="funcionario-id">
-        ID ERP - {funcionario.col_pessoa || "Não informado"}
-      </div>
+      <div className="funcionario-id">ERP #{idErp}</div>
 
-      <h3 className="funcionario-nome">{funcionario.nome || "Sem nome"}</h3>
+      <div className="funcionario-nome">{nome}</div>
 
       <div className="funcionario-info-box">
         <div className="funcionario-info-row">
-          <span className="funcionario-label">Cargo</span>
-          <span className="funcionario-value">
-            {funcionario.cargo_rh_nome || funcionario.cargo_oficial || "Não informado"}
-          </span>
+          <span className="funcionario-label">Cargo RH</span>
+          <span className="funcionario-value">{cargoRh}</span>
+        </div>
+
+        <div className="funcionario-info-row">
+          <span className="funcionario-label">Cargo ERP</span>
+          <span className="funcionario-value">{cargoOficial}</span>
         </div>
 
         <div className="funcionario-info-row">
           <span className="funcionario-label">Departamento</span>
-          <span className="funcionario-value">
-            {funcionario.departamento_nome || "Não informado"}
-          </span>
+          <span className="funcionario-value">{departamento}</span>
+        </div>
+
+        <div className="funcionario-info-row">
+          <span className="funcionario-label">Status</span>
+          <span className="funcionario-value">{status}</span>
         </div>
       </div>
 
       <div className="funcionario-tags">
-        <span className="tag tag-gray">
-          {funcionario.status || "Sem status"}
-        </span>
+        {vendedor ? (
+          <span className="tag tag-blue">Vendedor</span>
+        ) : (
+          <span className="tag tag-gray">Colaborador</span>
+        )}
 
-        <button className="tag-button tag-button-blue" onClick={abrirAnalise}>
+        <button
+          type="button"
+          className="tag-button tag-button-gray"
+          onClick={abrirDetalhe}
+        >
+          Detalhe
+        </button>
+
+        <button
+          type="button"
+          className="tag-button tag-button-blue"
+          onClick={abrirAnalise}
+        >
           Análise
         </button>
       </div>

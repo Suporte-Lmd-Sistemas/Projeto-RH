@@ -1,4 +1,3 @@
-from collections import defaultdict
 from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -12,25 +11,76 @@ from app.models.departamento import Departamento
 router = APIRouter(prefix="/performance", tags=["Performance"])
 
 
-def traduzir_acao(sigla):
-    mapa = {
-        "A": "Alteração",
-        "I": "Inclusão",
-        "E": "Exclusão",
-        "C": "Cancelamento",
-    }
-    return mapa.get(str(sigla).strip().upper(), str(sigla) if sigla is not None else "")
+def obter_data_hoje_iso() -> str:
+    return datetime.now().strftime("%Y-%m-%d")
 
 
-def formatar_dia_iso_para_br(data_iso):
-    """
-    Recebe '2026-04-07' e devolve '07/04'
-    """
+def obter_primeiro_dia_mes_atual_iso() -> str:
+    hoje = datetime.now()
+    return hoje.replace(day=1).strftime("%Y-%m-%d")
+
+
+def formatar_dia_iso_para_br(data_iso: str) -> str:
     try:
         data_obj = datetime.strptime(data_iso, "%Y-%m-%d")
         return data_obj.strftime("%d/%m")
     except Exception:
         return data_iso
+
+
+def normalizar_periodo(data_inicial: str, data_final: str) -> tuple[str, str]:
+    data_inicial_limpa = (data_inicial or "").strip()
+    data_final_limpa = (data_final or "").strip()
+
+    if not data_inicial_limpa and not data_final_limpa:
+        return obter_primeiro_dia_mes_atual_iso(), obter_data_hoje_iso()
+
+    if data_inicial_limpa and not data_final_limpa:
+        return data_inicial_limpa, obter_data_hoje_iso()
+
+    if not data_inicial_limpa and data_final_limpa:
+        ano_mes = data_final_limpa[:7]
+        return f"{ano_mes}-01", data_final_limpa
+
+    return data_inicial_limpa, data_final_limpa
+
+
+def montar_filtro_base(
+    col_pessoas: list[int],
+    acao: str,
+    data_inicial: str,
+    data_final: str,
+) -> tuple[str, dict]:
+    params: dict = {}
+
+    placeholders_col = []
+    for index, col_pessoa in enumerate(col_pessoas):
+        chave = f"col_pessoa_{index}"
+        placeholders_col.append(f":{chave}")
+        params[chave] = col_pessoa
+
+    filtros = [
+        f"v.VDR_PESSOA IN ({', '.join(placeholders_col)})"
+    ]
+
+    acao_limpa = (acao or "").strip().upper()
+    if acao_limpa:
+        filtros.append("UPPER(COALESCE(a.AUD_ACAO, '')) = :acao")
+        params["acao"] = acao_limpa
+
+    if data_inicial:
+        filtros.append(
+            "CAST(a.AUD_DT_LANCAMENTO AS DATE) >= CAST(:data_inicial AS DATE)"
+        )
+        params["data_inicial"] = data_inicial
+
+    if data_final:
+        filtros.append(
+            "CAST(a.AUD_DT_LANCAMENTO AS DATE) <= CAST(:data_final AS DATE)"
+        )
+        params["data_final"] = data_final
+
+    return " AND ".join(filtros), params
 
 
 @router.get("/visao-geral")
@@ -39,14 +89,13 @@ def obter_visao_geral_performance(
     departamento_id: int | None = Query(default=None),
     data_inicial: str = Query(default=""),
     data_final: str = Query(default=""),
-    limit_por_funcionario: int = Query(default=300, ge=1, le=1000),
     db: Session = Depends(get_db),
-    erp_db: Session = Depends(get_erp_db)
+    erp_db: Session = Depends(get_erp_db),
 ):
-    """
-    Consolida a auditoria de todos os funcionários vinculados no RH e devolve
-    uma visão geral pronta para o frontend.
-    """
+    data_inicial_normalizada, data_final_normalizada = normalizar_periodo(
+        data_inicial,
+        data_final,
+    )
 
     query_funcionarios = db.query(Funcionario)
 
@@ -62,8 +111,8 @@ def obter_visao_geral_performance(
             "filtros": {
                 "acao": acao.strip().upper() if acao else None,
                 "departamento_id": departamento_id,
-                "data_inicial": data_inicial.strip() if data_inicial else None,
-                "data_final": data_final.strip() if data_final else None,
+                "data_inicial": data_inicial_normalizada,
+                "data_final": data_final_normalizada,
             },
             "resumo": {
                 "total": 0,
@@ -90,247 +139,228 @@ def obter_visao_geral_performance(
         for dep in db.query(Departamento).all()
     }
 
-    registros_consolidados = []
-
-    for funcionario in funcionarios_rh:
-        departamento_nome = departamentos_map.get(funcionario.departamento_id)
-
-        query_nome_erp = text("""
-            SELECT
-                p.PES_RSOCIAL_NOME
-            FROM TB_COLABORADOR c
-            JOIN TB_PESSOA p
-              ON p.PES_ID = c.COL_PESSOA
-            WHERE c.COL_PESSOA = :col_pessoa
-        """)
-
-        nome_resultado = erp_db.execute(
-            query_nome_erp,
-            {"col_pessoa": funcionario.col_pessoa}
-        ).fetchone()
-
-        nome_funcionario = (
-            str(nome_resultado[0]).strip()
-            if nome_resultado and nome_resultado[0] is not None
-            else f"COL_PESSOA {funcionario.col_pessoa}"
-        )
-
-        filtros_sql = ["v.VDR_PESSOA = :col_pessoa"]
-        params = {
-            "col_pessoa": funcionario.col_pessoa
+    funcionarios_map = {
+        item.col_pessoa: {
+            "rh_id": item.id,
+            "col_pessoa": item.col_pessoa,
+            "departamento_id": item.departamento_id,
+            "departamento": departamentos_map.get(item.departamento_id),
         }
+        for item in funcionarios_rh
+        if item.col_pessoa is not None
+    }
 
-        acao_limpa = (acao or "").strip().upper()
-        if acao_limpa:
-            filtros_sql.append("UPPER(COALESCE(a.AUD_ACAO, '')) = :acao")
-            params["acao"] = acao_limpa
+    col_pessoas = list(funcionarios_map.keys())
 
-        data_inicial_limpa = (data_inicial or "").strip()
-        if data_inicial_limpa:
-            filtros_sql.append(
-                "CAST(a.AUD_DT_LANCAMENTO AS DATE) >= CAST(:data_inicial AS DATE)"
-            )
-            params["data_inicial"] = data_inicial_limpa
-
-        data_final_limpa = (data_final or "").strip()
-        if data_final_limpa:
-            filtros_sql.append(
-                "CAST(a.AUD_DT_LANCAMENTO AS DATE) <= CAST(:data_final AS DATE)"
-            )
-            params["data_final"] = data_final_limpa
-
-        where_sql = " AND ".join(filtros_sql)
-
-        query_auditoria = text(f"""
-            SELECT FIRST {limit_por_funcionario}
-                a.AUD_USUARIO,
-                a.AUD_ACAO,
-                a.AUD_TABELA_DESC,
-                ai.AUDI_CAMPO_DESC,
-                a.AUD_DESC_REGISTRO,
-                a.AUD_DT_LANCAMENTO,
-                a.AUD_SEQUENCIA,
-                a.AUD_ID_REGISTRO,
-                a.AUD_TABELA,
-                u.USU_ID,
-                u.USU_NOME,
-                u.USU_VENDEDOR,
-                v.VDR_PESSOA
-            FROM TB_AUDITORIA a
-            JOIN TB_AUDITORIA_ITEM ai
-              ON ai.AUDI_AUDITORIA = a.AUD_SEQUENCIA
-            JOIN TB_USUARIO u
-              ON u.USU_ID = a.AUD_USUARIO
-            JOIN TB_VENDEDOR v
-              ON v.VDR_PESSOA = u.USU_VENDEDOR
-            WHERE {where_sql}
-            ORDER BY a.AUD_DT_ACAO DESC, a.AUD_SEQUENCIA DESC
-        """)
-
-        registros_erp = erp_db.execute(query_auditoria, params).fetchall()
-
-        for registro in registros_erp:
-            data_hora = str(registro[5]) if registro[5] else None
-            data_iso = data_hora[:10] if data_hora else None
-            hora_ref = data_hora[11:13] if data_hora and len(data_hora) >= 13 else None
-
-            registros_consolidados.append({
-                "rh_id": funcionario.id,
-                "col_pessoa": funcionario.col_pessoa,
-                "funcionario": nome_funcionario,
-                "departamento_id": funcionario.departamento_id,
-                "departamento": departamento_nome,
-                "aud_usuario": registro[0],
-                "acao_sigla": registro[1],
-                "acao": traduzir_acao(registro[1]),
-                "tabela_desc": registro[2],
-                "campo_desc": registro[3],
-                "descricao_registro": registro[4],
-                "data_hora": data_hora,
-                "data_iso": data_iso,
-                "hora_ref": f"{hora_ref}h" if hora_ref is not None else None,
-                "aud_sequencia": registro[6],
-                "aud_id_registro": registro[7],
-                "aud_tabela": registro[8],
-                "usuario_id": registro[9],
-                "usuario_nome": registro[10],
-                "usuario_vendedor": registro[11],
-                "vendedor_pessoa": registro[12],
-            })
-
-    total = len(registros_consolidados)
-    inclusoes = sum(1 for item in registros_consolidados if item["acao_sigla"] == "I")
-    alteracoes = sum(1 for item in registros_consolidados if item["acao_sigla"] == "A")
-    exclusoes = sum(1 for item in registros_consolidados if item["acao_sigla"] == "E")
-    cancelamentos = sum(1 for item in registros_consolidados if item["acao_sigla"] == "C")
-
-    dias_set = set()
-    agrupado_horas = defaultdict(int)
-    agrupado_tabelas = defaultdict(int)
-    agrupado_dias = defaultdict(int)
-    agrupado_funcionarios = {}
-
-    for item in registros_consolidados:
-        if item["data_iso"]:
-            dias_set.add(item["data_iso"])
-            agrupado_dias[item["data_iso"]] += 1
-
-        if item["hora_ref"]:
-            agrupado_horas[item["hora_ref"]] += 1
-
-        tabela_desc = item["tabela_desc"] if item["tabela_desc"] else "-"
-        agrupado_tabelas[tabela_desc] += 1
-
-        chave_func = item["funcionario"]
-
-        if chave_func not in agrupado_funcionarios:
-            agrupado_funcionarios[chave_func] = {
-                "funcionario": item["funcionario"],
-                "departamento": item["departamento"],
+    if not col_pessoas:
+        return {
+            "filtros": {
+                "acao": acao.strip().upper() if acao else None,
+                "departamento_id": departamento_id,
+                "data_inicial": data_inicial_normalizada,
+                "data_final": data_final_normalizada,
+            },
+            "resumo": {
                 "total": 0,
                 "inclusoes": 0,
                 "alteracoes": 0,
                 "exclusoes": 0,
                 "cancelamentos": 0,
-            }
-
-        agrupado_funcionarios[chave_func]["total"] += 1
-
-        if item["acao_sigla"] == "I":
-            agrupado_funcionarios[chave_func]["inclusoes"] += 1
-        elif item["acao_sigla"] == "A":
-            agrupado_funcionarios[chave_func]["alteracoes"] += 1
-        elif item["acao_sigla"] == "E":
-            agrupado_funcionarios[chave_func]["exclusoes"] += 1
-        elif item["acao_sigla"] == "C":
-            agrupado_funcionarios[chave_func]["cancelamentos"] += 1
-
-    dias_com_atividade = len(dias_set)
-
-    if dias_com_atividade > 0:
-        media_por_dia = round(total / dias_com_atividade, 1)
-    else:
-        media_por_dia = 0
-
-    if agrupado_horas:
-        hora_mais_ativa = max(agrupado_horas.items(), key=lambda x: x[1])[0]
-    else:
-        hora_mais_ativa = "-"
-
-    if agrupado_tabelas:
-        tabela_mais_movimentada = max(agrupado_tabelas.items(), key=lambda x: x[1])[0]
-    else:
-        tabela_mais_movimentada = "-"
-
-    acoes_por_dia = [
-        {
-            "dia": formatar_dia_iso_para_br(data_iso),
-            "data_iso": data_iso,
-            "total": total_dia,
+            },
+            "produtividade": {
+                "dias_com_atividade": 0,
+                "media_por_dia": 0,
+                "hora_mais_ativa": "-",
+                "tabela_mais_movimentada": "-",
+            },
+            "acoes_por_dia": [],
+            "acoes_por_horario": [],
+            "ranking_funcionarios": [],
+            "tabela_resumo": [],
+            "registros": [],
         }
-        for data_iso, total_dia in sorted(agrupado_dias.items(), key=lambda x: x[0])
-    ]
 
-    def ordenar_hora_texto(hora_texto):
-        try:
-            return int(hora_texto.replace("h", ""))
-        except Exception:
-            return 999
+    where_sql, params = montar_filtro_base(
+        col_pessoas=col_pessoas,
+        acao=acao,
+        data_inicial=data_inicial_normalizada,
+        data_final=data_final_normalizada,
+    )
 
-    acoes_por_horario = [
-        {
-            "hora": hora,
+    # Resumo geral
+    query_resumo = text(f"""
+        SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN a.AUD_ACAO = 'I' THEN 1 ELSE 0 END) AS inclusoes,
+            SUM(CASE WHEN a.AUD_ACAO = 'A' THEN 1 ELSE 0 END) AS alteracoes,
+            SUM(CASE WHEN a.AUD_ACAO = 'E' THEN 1 ELSE 0 END) AS exclusoes,
+            SUM(CASE WHEN a.AUD_ACAO = 'C' THEN 1 ELSE 0 END) AS cancelamentos
+        FROM TB_AUDITORIA a
+        JOIN TB_USUARIO u
+          ON u.USU_ID = a.AUD_USUARIO
+        JOIN TB_VENDEDOR v
+          ON v.VDR_PESSOA = u.USU_VENDEDOR
+        WHERE {where_sql}
+    """)
+
+    resumo_row = erp_db.execute(query_resumo, params).fetchone()
+
+    total = int(resumo_row[0] or 0) if resumo_row else 0
+    inclusoes = int(resumo_row[1] or 0) if resumo_row else 0
+    alteracoes = int(resumo_row[2] or 0) if resumo_row else 0
+    exclusoes = int(resumo_row[3] or 0) if resumo_row else 0
+    cancelamentos = int(resumo_row[4] or 0) if resumo_row else 0
+
+    # Ações por dia
+    query_dias = text(f"""
+        SELECT
+            CAST(a.AUD_DT_LANCAMENTO AS DATE) AS data_ref,
+            COUNT(*) AS total
+        FROM TB_AUDITORIA a
+        JOIN TB_USUARIO u
+          ON u.USU_ID = a.AUD_USUARIO
+        JOIN TB_VENDEDOR v
+          ON v.VDR_PESSOA = u.USU_VENDEDOR
+        WHERE {where_sql}
+        GROUP BY CAST(a.AUD_DT_LANCAMENTO AS DATE)
+        ORDER BY CAST(a.AUD_DT_LANCAMENTO AS DATE)
+    """)
+
+    rows_dias = erp_db.execute(query_dias, params).fetchall()
+
+    acoes_por_dia = []
+    for row in rows_dias:
+        data_ref = str(row[0]) if row[0] else ""
+        acoes_por_dia.append({
+            "dia": formatar_dia_iso_para_br(data_ref),
+            "data_iso": data_ref,
+            "total": int(row[1] or 0),
+        })
+
+    dias_com_atividade = len(acoes_por_dia)
+    media_por_dia = round(total / dias_com_atividade, 1) if dias_com_atividade > 0 else 0
+
+    # Ações por horário
+    query_horas = text(f"""
+        SELECT
+            EXTRACT(HOUR FROM CAST(a.AUD_DT_LANCAMENTO AS TIMESTAMP)) AS hora_ref,
+            COUNT(*) AS total
+        FROM TB_AUDITORIA a
+        JOIN TB_USUARIO u
+          ON u.USU_ID = a.AUD_USUARIO
+        JOIN TB_VENDEDOR v
+          ON v.VDR_PESSOA = u.USU_VENDEDOR
+        WHERE {where_sql}
+        GROUP BY EXTRACT(HOUR FROM CAST(a.AUD_DT_LANCAMENTO AS TIMESTAMP))
+        ORDER BY EXTRACT(HOUR FROM CAST(a.AUD_DT_LANCAMENTO AS TIMESTAMP))
+    """)
+
+    rows_horas = erp_db.execute(query_horas, params).fetchall()
+
+    acoes_por_horario = []
+    hora_mais_ativa = "-"
+    maior_total_hora = -1
+
+    for row in rows_horas:
+        hora_num = int(row[0]) if row[0] is not None else None
+        total_hora = int(row[1] or 0)
+
+        if hora_num is None:
+            continue
+
+        hora_texto = f"{hora_num:02d}h"
+        acoes_por_horario.append({
+            "hora": hora_texto,
             "total": total_hora,
-        }
-        for hora, total_hora in sorted(
-            agrupado_horas.items(),
-            key=lambda x: ordenar_hora_texto(x[0])
-        )
-    ]
+        })
 
-    ranking_funcionarios = sorted(
-        [
-            {
-                "nome": item["funcionario"],
-                "departamento": item["departamento"],
-                "total": item["total"],
-            }
-            for item in agrupado_funcionarios.values()
-        ],
-        key=lambda x: x["total"],
-        reverse=True
-    )
+        if total_hora > maior_total_hora:
+            maior_total_hora = total_hora
+            hora_mais_ativa = hora_texto
 
-    tabela_resumo = sorted(
-        [
-            {
-                "funcionario": item["funcionario"],
-                "departamento": item["departamento"],
-                "acoes": item["total"],
-                "inclusoes": item["inclusoes"],
-                "alteracoes": item["alteracoes"],
-                "exclusoes": item["exclusoes"],
-                "cancelamentos": item["cancelamentos"],
-            }
-            for item in agrupado_funcionarios.values()
-        ],
-        key=lambda x: x["acoes"],
-        reverse=True
-    )
+    # Tabela mais movimentada
+    query_tabela_mais = text(f"""
+        SELECT FIRST 1
+            COALESCE(a.AUD_TABELA_DESC, '-') AS tabela_desc,
+            COUNT(*) AS total
+        FROM TB_AUDITORIA a
+        JOIN TB_USUARIO u
+          ON u.USU_ID = a.AUD_USUARIO
+        JOIN TB_VENDEDOR v
+          ON v.VDR_PESSOA = u.USU_VENDEDOR
+        WHERE {where_sql}
+        GROUP BY COALESCE(a.AUD_TABELA_DESC, '-')
+        ORDER BY COUNT(*) DESC
+    """)
 
-    registros_consolidados = sorted(
-        registros_consolidados,
-        key=lambda x: x["data_hora"] if x["data_hora"] else "",
-        reverse=True
-    )
+    row_tabela_mais = erp_db.execute(query_tabela_mais, params).fetchone()
+    tabela_mais_movimentada = str(row_tabela_mais[0]).strip() if row_tabela_mais and row_tabela_mais[0] else "-"
+
+    # Ranking e tabela resumo por colaborador
+    query_funcionarios_resumo = text(f"""
+        SELECT
+            v.VDR_PESSOA AS col_pessoa,
+            p.PES_RSOCIAL_NOME AS funcionario,
+            COUNT(*) AS total,
+            SUM(CASE WHEN a.AUD_ACAO = 'I' THEN 1 ELSE 0 END) AS inclusoes,
+            SUM(CASE WHEN a.AUD_ACAO = 'A' THEN 1 ELSE 0 END) AS alteracoes,
+            SUM(CASE WHEN a.AUD_ACAO = 'E' THEN 1 ELSE 0 END) AS exclusoes,
+            SUM(CASE WHEN a.AUD_ACAO = 'C' THEN 1 ELSE 0 END) AS cancelamentos
+        FROM TB_AUDITORIA a
+        JOIN TB_USUARIO u
+          ON u.USU_ID = a.AUD_USUARIO
+        JOIN TB_VENDEDOR v
+          ON v.VDR_PESSOA = u.USU_VENDEDOR
+        JOIN TB_PESSOA p
+          ON p.PES_ID = v.VDR_PESSOA
+        WHERE {where_sql}
+        GROUP BY v.VDR_PESSOA, p.PES_RSOCIAL_NOME
+        ORDER BY COUNT(*) DESC
+    """)
+
+    rows_funcionarios = erp_db.execute(query_funcionarios_resumo, params).fetchall()
+
+    ranking_funcionarios = []
+    tabela_resumo = []
+
+    for row in rows_funcionarios:
+        col_pessoa = row[0]
+        funcionario_nome = str(row[1]).strip() if row[1] else f"COL_PESSOA {col_pessoa}"
+        total_func = int(row[2] or 0)
+        inclusoes_func = int(row[3] or 0)
+        alteracoes_func = int(row[4] or 0)
+        exclusoes_func = int(row[5] or 0)
+        cancelamentos_func = int(row[6] or 0)
+
+        dados_rh = funcionarios_map.get(col_pessoa, {})
+        departamento_nome = dados_rh.get("departamento")
+
+        ranking_funcionarios.append({
+            "nome": funcionario_nome,
+            "departamento": departamento_nome,
+            "total": total_func,
+            "inclusoes": inclusoes_func,
+            "alteracoes": alteracoes_func,
+            "exclusoes": exclusoes_func,
+            "cancelamentos": cancelamentos_func,
+        })
+
+        tabela_resumo.append({
+            "funcionario": funcionario_nome,
+            "departamento": departamento_nome,
+            "acoes": total_func,
+            "inclusoes": inclusoes_func,
+            "alteracoes": alteracoes_func,
+            "exclusoes": exclusoes_func,
+            "cancelamentos": cancelamentos_func,
+        })
 
     return {
         "filtros": {
-            "acao": acao.strip().upper() if acao else None,
+            "acao": (acao or "").strip().upper() or None,
             "departamento_id": departamento_id,
-            "data_inicial": data_inicial.strip() if data_inicial else None,
-            "data_final": data_final.strip() if data_final else None,
-            "limit_por_funcionario": limit_por_funcionario,
+            "data_inicial": data_inicial_normalizada,
+            "data_final": data_final_normalizada,
         },
         "resumo": {
             "total": total,
@@ -349,5 +379,5 @@ def obter_visao_geral_performance(
         "acoes_por_horario": acoes_por_horario,
         "ranking_funcionarios": ranking_funcionarios,
         "tabela_resumo": tabela_resumo,
-        "registros": registros_consolidados,
+        "registros": [],
     }

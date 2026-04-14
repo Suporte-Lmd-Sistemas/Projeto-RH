@@ -3,31 +3,38 @@ from typing import List
 
 
 class FuncionariosResumo(BaseModel):
-    totalFuncionarios: int
+    total: int
     ativos: int
     afastados: int
     vendedores: int
     mediaSalarial: float
 
 
-class FuncionarioCardItem(BaseModel):
-    pessoaId: int
-    nome: str
-    funcao: str | None
-    status: str | None
-    dataAdmissao: str | None
-    salario: float
-    vendedor: bool
-    usuarioId: int | None
-    usuarioNome: str | None
-
-
-class FuncaoDistribuicaoItem(BaseModel):
+class DistribuicaoFuncaoItem(BaseModel):
     funcao: str
     quantidade: int
 
 
+class FuncionarioItem(BaseModel):
+    rhId: int | None = None
+    colPessoa: int
+    nome: str
+    cargoOficial: str | None = None
+    cargoRhId: int | None = None
+    cargoRhNome: str | None = None
+    departamentoId: int | None = None
+    departamentoNome: str | None = None
+    status: str | None = None
+    salario: float | None = None
+    dataAdmissao: str | None = None
+    dataAfastamento: str | None = None
+    email: str | None = None
+    telefone: str | None = None
+    celular: str | None = None
+    vendedor: bool = False
+
+
 class DashboardFuncionariosResponse(BaseModel):
     resumo: FuncionariosResumo
-    funcionarios: List[FuncionarioCardItem]
-    distribuicaoFuncoes: List[FuncaoDistribuicaoItem]
+    distribuicaoFuncoes: List[DistribuicaoFuncaoItem]
+    funcionarios: List[FuncionarioItem]

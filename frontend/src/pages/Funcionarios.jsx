@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Topbar from "../components/Topbar";
 import FuncionarioCard from "../components/FuncionarioCard";
 import api from "../services/api";
@@ -7,6 +8,8 @@ import "../styles/topbar.css";
 import "../styles/funcionarios.css";
 
 function Funcionarios() {
+  const navigate = useNavigate();
+
   const [funcionarios, setFuncionarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
@@ -144,7 +147,11 @@ function Funcionarios() {
             </select>
           </div>
 
-          <button className="funcionarios-novo-vinculo" type="button">
+          <button
+            className="funcionarios-novo-vinculo"
+            type="button"
+            onClick={() => navigate("/funcionarios/novo")}
+          >
             Novo vínculo
           </button>
         </div>

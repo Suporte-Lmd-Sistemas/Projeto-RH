@@ -9,8 +9,9 @@ import RelatoriosFinanceiro from "./pages/RelatoriosFinanceiro";
 import RelatoriosConsultoria from "./pages/RelatoriosConsultoria";
 import RelatoriosDiversos from "./pages/RelatoriosDiversos";
 import Funcionarios from "./pages/Funcionarios";
-import FuncionarioDetalhe from "./pages/FuncionarioDetalhe";
+import FuncionarioNovoVinculo from "./pages/FuncionarioNovoVinculo";
 import FuncionarioAnalise from "./pages/FuncionarioAnalise";
+import FuncionarioDetalhe from "./pages/FuncionarioDetalhe";
 import Performance from "./pages/Performance";
 
 function App() {
@@ -33,8 +34,9 @@ function App() {
           <Route path="/relatorios/diversos" element={<RelatoriosDiversos />} />
 
           <Route path="/funcionarios" element={<Funcionarios />} />
-          <Route path="/funcionarios/:id" element={<FuncionarioDetalhe />} />
+          <Route path="/funcionarios/novo" element={<FuncionarioNovoVinculo />} />
           <Route path="/funcionarios/:id/analise" element={<FuncionarioAnalise />} />
+          <Route path="/funcionarios/:id" element={<FuncionarioDetalhe />} />
 
           <Route path="/performance" element={<Performance />} />
         </Routes>

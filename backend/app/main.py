@@ -14,7 +14,6 @@ from app.routes.performance import router as performance_router
 from app.routes.dashboard_financeiro import router as dashboard_financeiro_router
 from app.routes.dashboard_vendas import router as dashboard_vendas_router
 from app.routes.dashboard_funcionarios import router as dashboard_funcionarios_router
-from app.routes.dashboard_auditoria import router as dashboard_auditoria_router
 
 from app.database.create_tables import create_tables
 
@@ -51,4 +50,3 @@ app.include_router(performance_router)
 app.include_router(dashboard_financeiro_router)
 app.include_router(dashboard_vendas_router)
 app.include_router(dashboard_funcionarios_router)
-app.include_router(dashboard_auditoria_router)
