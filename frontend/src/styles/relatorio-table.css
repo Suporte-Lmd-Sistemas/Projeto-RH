@@ -1,6 +1,35 @@
+.report-preview {
+  width: 100%;
+}
+
+.report-sheet {
+  background: #ffffff;
+  border: 1px solid #dbe3f0;
+  border-radius: 18px;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.report-group-row td {
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 700;
+  border-top: 1px solid #dbe3f0;
+  border-bottom: 1px solid #dbe3f0;
+  padding: 10px 14px;
+}
+
+.report-group-total-row td {
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 700;
+  border-top: 1px solid #dbe3f0;
+  padding: 12px 14px;
+}
+
 .preview-summary {
-  padding: 14px 22px;
-  border-bottom: 1px solid #eef2f7;
+  padding: 14px 24px;
+  border-top: 1px solid #eef2f7;
   color: #475569;
   font-size: 0.95rem;
   background: #ffffff;
@@ -9,12 +38,13 @@
 .preview-table-wrap {
   width: 100%;
   overflow: auto;
-  max-height: 70vh;
+  max-height: 72vh;
+  border-top: 1px solid #eef2f7;
 }
 
 .preview-table {
   width: 100%;
-  min-width: 980px;
+  min-width: 1100px;
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -25,7 +55,7 @@
   z-index: 2;
   background: #f8fafc;
   color: #1e293b;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 800;
   text-align: left;
   padding: 14px 16px;
@@ -33,23 +63,73 @@
   white-space: nowrap;
 }
 
-.preview-table tbody td {
+.preview-table tbody td,
+.preview-table tfoot td {
   padding: 13px 16px;
   border-bottom: 1px solid #eef2f7;
   color: #334155;
-  font-size: 0.93rem;
+  font-size: 0.92rem;
   vertical-align: top;
 }
 
-.preview-table tbody tr:nth-child(even) {
+.preview-table tbody tr:nth-child(even):not(.report-group-row):not(.report-group-total-row) {
   background: #fcfdff;
 }
 
-.preview-table tbody tr:hover {
+.preview-table tbody tr:hover:not(.report-group-row):not(.report-group-total-row) {
   background: #f8fbff;
+}
+
+.preview-table .is-number {
+  text-align: right;
+}
+
+.preview-table tfoot td {
+  background: #f8fafc;
+  font-weight: 800;
+  color: #0f172a;
+  border-top: 1px solid #dbe3f0;
 }
 
 .preview-empty {
   padding: 18px 22px;
   color: #64748b;
+  background: #ffffff;
+}
+
+@media (max-width: 1100px) {
+  .preview-table {
+    min-width: 980px;
+  }
+}
+
+@media (max-width: 700px) {
+  .preview-summary {
+    padding: 14px 16px;
+  }
+
+  .preview-table thead th,
+  .preview-table tbody td,
+  .preview-table tfoot td,
+  .report-group-row td,
+  .report-group-total-row td {
+    padding: 12px 12px;
+  }
+}
+
+@media print {
+  .report-sheet {
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  .preview-table-wrap {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .preview-table thead th {
+    position: static;
+  }
 }

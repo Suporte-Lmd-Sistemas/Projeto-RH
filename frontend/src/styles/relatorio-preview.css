@@ -124,24 +124,10 @@
 
 .preview-page-card {
   margin-top: 26px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 18px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.07);
-  overflow: hidden;
-}
-
-.preview-header {
-  padding: 18px 22px;
-  border-bottom: 1px solid #e5e7eb;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-}
-
-.preview-header h2 {
-  margin: 0;
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: #0f172a;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
 }
 
 @media (max-width: 900px) {
@@ -169,7 +155,8 @@
 
 @media print {
   .no-print,
-  .topbar {
+  .topbar,
+  .sidebar {
     display: none !important;
   }
 

@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional
 import xml.etree.ElementTree as ET
 import html
 import re
+from datetime import date
 
 
 def _get_attr(element: ET.Element, key: str) -> Optional[str]:
@@ -29,15 +30,248 @@ def _limpar_sql_fastreport(sql_text: Optional[str]) -> Optional[str]:
 
     texto = sql_text.strip()
 
-    # corta lixo serializado que às vezes aparece depois do SQL
     lixo_match = re.search(r"\n[eE][A-Za-z0-9+/=]{40,}\s*$", texto)
     if lixo_match:
         texto = texto[:lixo_match.start()].rstrip()
 
-    # se houver algum bloco base64 grudado sem quebra
     texto = re.sub(r"[ \t]*[eE][A-Za-z0-9+/=]{80,}\s*$", "", texto).rstrip()
 
     return texto
+
+
+def _is_band_tag(tag: str) -> bool:
+    if not tag or not tag.startswith("Tfrx"):
+        return False
+
+    tag_lower = tag.lower()
+    return "band" in tag_lower or tag_lower in {
+        "tfrxreporttitle",
+        "tfrxpageheader",
+        "tfrxpagefooter",
+        "tfrxcolumnheader",
+        "tfrxcolumnfooter",
+        "tfrxheader",
+        "tfrxfooter",
+        "tfrxmasterdata",
+        "tfrxdetaildata",
+        "tfrxgroupheader",
+        "tfrxgroupfooter",
+        "tfrxreportsummary",
+        "tfrxchild",
+        "tfrxoverlay",
+    }
+
+
+def _iter_non_band_descendants(element: ET.Element):
+    for child in list(element):
+        if _is_band_tag(child.tag):
+            continue
+
+        yield child
+
+        for nested in _iter_non_band_descendants(child):
+            yield nested
+
+
+def _extract_memos_from_band(
+    band: ET.Element,
+    page_name: Optional[str],
+    page_index: int,
+    band_name: Optional[str],
+    band_type: Optional[str],
+) -> List[Dict[str, Any]]:
+    memos: List[Dict[str, Any]] = []
+
+    for node in _iter_non_band_descendants(band):
+        if node.tag != "TfrxMemoView":
+            continue
+
+        memo_info = {
+            "name": _get_attr(node, "Name"),
+            "text": _decode_text(_get_attr(node, "Text")),
+            "page_name": page_name,
+            "page_index": page_index,
+            "left": _get_attr(node, "Left"),
+            "top": _get_attr(node, "Top"),
+            "width": _get_attr(node, "Width"),
+            "height": _get_attr(node, "Height"),
+            "data_field": _get_attr(node, "DataField"),
+            "data_set": _get_attr(node, "DataSet"),
+            "h_align": _get_attr(node, "HAlign"),
+            "v_align": _get_attr(node, "VAlign"),
+            "font_name": _get_attr(node, "Font.Name"),
+            "font_size": _get_attr(node, "Font.Size"),
+            "font_style": _get_attr(node, "Font.Style"),
+            "color": _get_attr(node, "Color"),
+            "fill_color": _get_attr(node, "Fill.Color"),
+            "border_color": _get_attr(node, "Frame.Color"),
+            "border_width": _get_attr(node, "Frame.Width"),
+            "band_name": band_name,
+            "band_type": band_type,
+        }
+
+        memos.append(memo_info)
+
+    return memos
+
+
+def _extract_bands_from_node(
+    node: ET.Element,
+    page_name: Optional[str],
+    page_index: int,
+    bands: List[Dict[str, Any]],
+    memos: List[Dict[str, Any]],
+    parent_band_name: Optional[str] = None,
+) -> None:
+    for child in list(node):
+        if not _is_band_tag(child.tag):
+            _extract_bands_from_node(
+                child,
+                page_name,
+                page_index,
+                bands,
+                memos,
+                parent_band_name=parent_band_name,
+            )
+            continue
+
+        band_name = _get_attr(child, "Name")
+        band_type = child.tag
+
+        band_info = {
+            "name": band_name,
+            "type": band_type,
+            "page_name": page_name,
+            "page_index": page_index,
+            "parent_band_name": parent_band_name,
+            "child_band_name": _get_attr(child, "Child"),
+            "data_set": _get_attr(child, "DataSet"),
+            "condition": _decode_text(_get_attr(child, "Condition")),
+            "left": _get_attr(child, "Left"),
+            "top": _get_attr(child, "Top"),
+            "width": _get_attr(child, "Width"),
+            "height": _get_attr(child, "Height"),
+        }
+
+        bands.append(band_info)
+
+        memos.extend(
+            _extract_memos_from_band(
+                child,
+                page_name=page_name,
+                page_index=page_index,
+                band_name=band_name,
+                band_type=band_type,
+            )
+        )
+
+        _extract_bands_from_node(
+            child,
+            page_name,
+            page_index,
+            bands,
+            memos,
+            parent_band_name=band_name,
+        )
+
+
+def _parse_layout_visual(root: ET.Element) -> Dict[str, Any]:
+    pages: List[Dict[str, Any]] = []
+    bands: List[Dict[str, Any]] = []
+    memos: List[Dict[str, Any]] = []
+
+    for page_index, page in enumerate(root.findall(".//TfrxReportPage")):
+        page_name = _get_attr(page, "Name")
+
+        pages.append(
+            {
+                "name": page_name,
+                "width": _get_attr(page, "Width"),
+                "height": _get_attr(page, "Height"),
+            }
+        )
+
+        _extract_bands_from_node(
+            page,
+            page_name=page_name,
+            page_index=page_index,
+            bands=bands,
+            memos=memos,
+        )
+
+    return {
+        "pages": pages,
+        "bands": bands,
+        "memos": memos,
+    }
+
+
+def _infer_parameter_metadata(queries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    today = date.today()
+    first_day = today.replace(day=1)
+
+    unique_params: Dict[str, Dict[str, Any]] = {}
+
+    for query in queries:
+        for param in query.get("parametros", []):
+            original_name = (param.get("name") or "").strip()
+            datatype = (param.get("datatype") or "").strip()
+
+            if not original_name:
+                continue
+
+            key = original_name.upper()
+
+            if key in unique_params:
+                continue
+
+            datatype_lower = datatype.lower()
+            inferred_type = "str"
+            semantic_key = key.lower()
+            default_value: Any = ""
+
+            if "date" in datatype_lower:
+                inferred_type = "date"
+
+                if "INICIAL" in key or "INICIO" in key:
+                    semantic_key = "data_inicial"
+                    default_value = first_day.isoformat()
+                elif "FINAL" in key or "FIM" in key:
+                    semantic_key = "data_final"
+                    default_value = today.isoformat()
+                else:
+                    semantic_key = "data"
+                    default_value = today.isoformat()
+
+            elif "integer" in datatype_lower or "smallint" in datatype_lower or "bigint" in datatype_lower:
+                inferred_type = "int"
+                default_value = 0
+
+                if "EMPRESA" in key:
+                    semantic_key = "empresa"
+                    default_value = 1
+                elif "VENDEDOR" in key:
+                    semantic_key = "vendedor"
+                    default_value = 0
+                elif "CLIENTE" in key:
+                    semantic_key = "cliente"
+                    default_value = 0
+                elif "NATUREZA" in key:
+                    semantic_key = "natureza"
+                    default_value = 0
+
+            elif "numeric" in datatype_lower or "float" in datatype_lower or "double" in datatype_lower or "decimal" in datatype_lower:
+                inferred_type = "number"
+                default_value = 0
+
+            unique_params[key] = {
+                "original_name": original_name,
+                "inferred_type": inferred_type,
+                "semantic_key": semantic_key,
+                "default_value": default_value,
+            }
+
+    return list(unique_params.values())
 
 
 def parse_fastreport_xml(xml_text: str) -> Dict[str, Any]:
@@ -49,16 +283,20 @@ def parse_fastreport_xml(xml_text: str) -> Dict[str, Any]:
     observacoes: List[str] = []
 
     for item in root.findall(".//Datasets/item"):
-        datasets.append({
-            "dataset": _get_attr(item, "DataSet"),
-            "dataset_name": _get_attr(item, "DataSetName"),
-        })
+        datasets.append(
+            {
+                "dataset": _get_attr(item, "DataSet"),
+                "dataset_name": _get_attr(item, "DataSetName"),
+            }
+        )
 
     for item in root.findall(".//Variables/item"):
-        variables.append({
-            "name": _get_attr(item, "Name"),
-            "value": _get_attr(item, "Value"),
-        })
+        variables.append(
+            {
+                "name": _get_attr(item, "Name"),
+                "value": _get_attr(item, "Value"),
+            }
+        )
 
     fd_queries = root.findall(".//TfrxFDQuery")
     if fd_queries:
@@ -69,12 +307,14 @@ def parse_fastreport_xml(xml_text: str) -> Dict[str, Any]:
         sql_text: Optional[str] = None
 
         for p in query.findall("./Parameters/item"):
-            parametros.append({
-                "name": _get_attr(p, "Name"),
-                "datatype": _get_attr(p, "DataType"),
-            })
+            parametros.append(
+                {
+                    "name": _get_attr(p, "Name"),
+                    "datatype": _get_attr(p, "DataType"),
+                }
+            )
 
-        sql_candidates = []
+        sql_candidates: List[str] = []
 
         for attr_name, attr_value in query.attrib.items():
             upper_name = attr_name.upper()
@@ -92,16 +332,23 @@ def parse_fastreport_xml(xml_text: str) -> Dict[str, Any]:
         sql_text = _decode_text(sql_text)
         sql_text = _limpar_sql_fastreport(sql_text)
 
-        queries.append({
-            "name": _get_attr(query, "Name"),
-            "user_name": _get_attr(query, "UserName"),
-            "sql_text": sql_text,
-            "parametros": parametros,
-        })
+        queries.append(
+            {
+                "name": _get_attr(query, "Name"),
+                "user_name": _get_attr(query, "UserName"),
+                "sql_text": sql_text,
+                "parametros": parametros,
+            }
+        )
+
+    layout_visual = _parse_layout_visual(root)
+    parameters_detected = _infer_parameter_metadata(queries)
 
     return {
         "datasets": datasets,
         "variables": variables,
         "queries": queries,
+        "parameters_detected": parameters_detected,
         "observacoes": observacoes,
+        "layout_visual": layout_visual,
     }
