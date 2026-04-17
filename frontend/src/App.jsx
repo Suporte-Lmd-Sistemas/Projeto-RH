@@ -5,6 +5,7 @@ import DashboardFinanceiro from "./pages/DashboardFinanceiro";
 import DashboardMultiEmpresa from "./pages/DashboardMultiEmpresa";
 import Relatorios from "./pages/Relatorios";
 import RelatoriosVendas from "./pages/RelatoriosVendas";
+import RelatorioPreviewPage from "./pages/RelatorioPreviewPage";
 import RelatoriosFinanceiro from "./pages/RelatoriosFinanceiro";
 import RelatoriosConsultoria from "./pages/RelatoriosConsultoria";
 import RelatoriosDiversos from "./pages/RelatoriosDiversos";
@@ -14,12 +15,12 @@ import FuncionarioAnalise from "./pages/FuncionarioAnalise";
 import FuncionarioDetalhe from "./pages/FuncionarioDetalhe";
 import Performance from "./pages/Performance";
 
-function App() {
+function AppLayout() {
   return (
     <div>
       <Sidebar />
 
-      <div style={{ marginLeft: "240px" }}>
+      <div style={{ marginLeft: "240px", minHeight: "100vh" }}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard/vendas" replace />} />
 
@@ -29,6 +30,7 @@ function App() {
 
           <Route path="/relatorios" element={<Relatorios />} />
           <Route path="/relatorios/vendas" element={<RelatoriosVendas />} />
+          <Route path="/relatorios/preview" element={<RelatorioPreviewPage />} />
           <Route path="/relatorios/financeiro" element={<RelatoriosFinanceiro />} />
           <Route path="/relatorios/consultoria" element={<RelatoriosConsultoria />} />
           <Route path="/relatorios/diversos" element={<RelatoriosDiversos />} />
@@ -45,4 +47,6 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return <AppLayout />;
+}

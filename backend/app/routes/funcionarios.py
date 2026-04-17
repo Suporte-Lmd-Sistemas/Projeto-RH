@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -69,10 +69,10 @@ def listar_colaboradores_erp_disponiveis(
         nome = str(colaborador[4]) if colaborador[4] is not None else ""
         cpf = str(colaborador[5]) if colaborador[5] is not None else ""
         cargo = str(colaborador[1]) if colaborador[1] is not None else ""
-        status = str(colaborador[2]) if colaborador[2] is not None else ""
+        status_erp = str(colaborador[2]) if colaborador[2] is not None else ""
 
         if search_limpo:
-            busca_texto = f"{nome} {cpf} {cargo} {status}".lower()
+            busca_texto = f"{nome} {cpf} {cargo} {status_erp}".lower()
             if search_limpo not in busca_texto:
                 continue
 
@@ -82,7 +82,7 @@ def listar_colaboradores_erp_disponiveis(
                 "nome": nome,
                 "cpf": cpf,
                 "cargo_oficial": cargo,
-                "status": status,
+                "status": status_erp,
                 "data_admissao": str(colaborador[3]) if colaborador[3] else None,
                 "email": colaborador[6],
                 "telefone": colaborador[7],
@@ -100,7 +100,7 @@ def listar_colaboradores_erp_disponiveis(
 def listar_funcionarios(
     nome: str = "",
     departamento_id: int | None = None,
-    status: str = "",
+    status_filtro: str = Query(default="", alias="status"),
     cargo: str = "",
     db: Session = Depends(get_db),
     erp_db: Session = Depends(get_erp_db),
@@ -115,15 +115,15 @@ def listar_funcionarios(
     resultado = []
 
     for funcionario in funcionarios:
-        departamento = db.query(Departamento).filter(
-            Departamento.id == funcionario.departamento_id
-        ).first()
+        departamento = (
+            db.query(Departamento)
+            .filter(Departamento.id == funcionario.departamento_id)
+            .first()
+        )
 
         cargo_rh = None
         if funcionario.cargo_id is not None:
-            cargo_rh = db.query(Cargo).filter(
-                Cargo.id == funcionario.cargo_id
-            ).first()
+            cargo_rh = db.query(Cargo).filter(Cargo.id == funcionario.cargo_id).first()
 
         query_erp = text(
             """
@@ -164,7 +164,7 @@ def listar_funcionarios(
         if cargo and cargo.lower() not in cargo_erp.lower():
             continue
 
-        if status and status.lower() not in status_erp.lower():
+        if status_filtro and status_filtro.lower() not in status_erp.lower():
             continue
 
         resultado.append(
@@ -189,6 +189,93 @@ def listar_funcionarios(
         )
 
     return resultado
+
+
+@router.post("/", status_code=status.HTTP_201_CREATED)
+def criar_vinculo_funcionario(
+    dados: FuncionarioCreate,
+    db: Session = Depends(get_db),
+    erp_db: Session = Depends(get_erp_db),
+):
+    col_pessoa = dados.col_pessoa
+    departamento_id = dados.departamento_id
+    cargo_id = dados.cargo_id
+
+    existente = (
+        db.query(Funcionario)
+        .filter(Funcionario.col_pessoa == col_pessoa)
+        .first()
+    )
+
+    if existente:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Este colaborador do ERP já está vinculado no RH.",
+        )
+
+    departamento = (
+        db.query(Departamento)
+        .filter(Departamento.id == departamento_id)
+        .first()
+    )
+
+    if not departamento:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Departamento não encontrado.",
+        )
+
+    cargo = None
+    if cargo_id is not None:
+        cargo = db.query(Cargo).filter(Cargo.id == cargo_id).first()
+
+        if not cargo:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cargo não encontrado.",
+            )
+
+    query_erp = text(
+        """
+        SELECT
+            COL_PESSOA
+        FROM TB_COLABORADOR
+        WHERE COL_PESSOA = :col_pessoa
+        """
+    )
+
+    colaborador_erp = erp_db.execute(
+        query_erp,
+        {"col_pessoa": col_pessoa}
+    ).fetchone()
+
+    if not colaborador_erp:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Colaborador não encontrado no ERP.",
+        )
+
+    novo = Funcionario(
+        col_pessoa=col_pessoa,
+        departamento_id=departamento_id,
+        cargo_id=cargo_id,
+    )
+
+    db.add(novo)
+    db.commit()
+    db.refresh(novo)
+
+    return {
+        "mensagem": "Vínculo criado com sucesso.",
+        "funcionario": {
+            "rh_id": novo.id,
+            "col_pessoa": novo.col_pessoa,
+            "departamento_id": novo.departamento_id,
+            "departamento_nome": departamento.nome if departamento else None,
+            "cargo_id": novo.cargo_id,
+            "cargo_nome": cargo.nome if cargo else None,
+        },
+    }
 
 
 @router.get("/{rh_id}/auditoria")
@@ -293,15 +380,15 @@ def listar_auditoria_funcionario(
             AI.AUDI_VALOR_NOVO
         FROM TB_AUDITORIA A
         LEFT JOIN TB_AUDITORIA_ITEM AI
-          ON  AI.audi_id_registro = A.aud_id_registro
+          ON AI.audi_id_registro = A.aud_id_registro
         WHERE {where_sql}
-       ORDER BY
-    SUBSTRING(A.AUD_DT_LANCAMENTO FROM 7 FOR 4) ||
-    SUBSTRING(A.AUD_DT_LANCAMENTO FROM 4 FOR 2) ||
-    SUBSTRING(A.AUD_DT_LANCAMENTO FROM 1 FOR 2) ||
-    SUBSTRING(A.AUD_DT_LANCAMENTO FROM 12 FOR 5)
-DESC,
-A.AUD_SEQUENCIA DESC
+        ORDER BY
+            SUBSTRING(A.AUD_DT_LANCAMENTO FROM 7 FOR 4) ||
+            SUBSTRING(A.AUD_DT_LANCAMENTO FROM 4 FOR 2) ||
+            SUBSTRING(A.AUD_DT_LANCAMENTO FROM 1 FOR 2) ||
+            SUBSTRING(A.AUD_DT_LANCAMENTO FROM 12 FOR 5)
+        DESC,
+        A.AUD_SEQUENCIA DESC
         """
     )
 
@@ -350,6 +437,7 @@ A.AUD_SEQUENCIA DESC
         "total": len(resultado),
         "registros": resultado,
     }
+
 
 @router.get("/{rh_id}")
 def detalhar_funcionario(
