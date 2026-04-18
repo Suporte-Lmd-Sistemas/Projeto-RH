@@ -1,5 +1,9 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.routes.home import router as home_router
 from app.routes.departamentos import router as departamentos_router
@@ -15,6 +19,8 @@ from app.routes.dashboard_financeiro import router as dashboard_financeiro_route
 from app.routes.dashboard_vendas import router as dashboard_vendas_router
 from app.routes.dashboard_funcionarios import router as dashboard_funcionarios_router
 from app.routes.relatorio import router as relatorio_router
+from app.routes.auth import router as auth_router
+from app.routes.empresa import router as empresa_router
 
 from app.database.create_tables import create_tables
 
@@ -25,12 +31,15 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origin_regex=(
+        r"^http://("
+        r"localhost|"
+        r"127\.0\.0\.1|"
+        r"192\.168\.\d{1,3}\.\d{1,3}|"
+        r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}|"
+        r"172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}"
+        r")(:\d+)?$"
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,6 +47,9 @@ app.add_middleware(
 
 create_tables()
 
+# =========================
+# ROTAS DA API
+# =========================
 app.include_router(home_router)
 app.include_router(departamentos_router)
 app.include_router(cargos_router)
@@ -52,3 +64,79 @@ app.include_router(dashboard_financeiro_router)
 app.include_router(dashboard_vendas_router)
 app.include_router(dashboard_funcionarios_router)
 app.include_router(relatorio_router)
+app.include_router(auth_router)
+app.include_router(empresa_router)
+# =========================
+# HEALTH CHECK
+# =========================
+@app.get("/health", tags=["Sistema"])
+def health_check():
+    return {
+        "success": True,
+        "message": "API online"
+    }
+
+# =========================
+# FRONTEND BUILD
+# =========================
+BASE_DIR = Path(__file__).resolve().parents[2]
+FRONTEND_DIST_DIR = BASE_DIR / "frontend" / "dist"
+FRONTEND_ASSETS_DIR = FRONTEND_DIST_DIR / "assets"
+
+if FRONTEND_ASSETS_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_ASSETS_DIR), name="assets")
+
+
+@app.get("/", include_in_schema=False)
+def serve_frontend_root():
+    index_file = FRONTEND_DIST_DIR / "index.html"
+
+    if index_file.exists():
+        return FileResponse(index_file)
+
+    return JSONResponse(
+        status_code=503,
+        content={
+            "success": False,
+            "message": "Frontend buildado não encontrado. Execute o build do React."
+        }
+    )
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def serve_frontend_spa(full_path: str):
+    """
+    Fallback do React Router.
+    Permite abrir diretamente rotas como:
+    /dashboard/vendas
+    /relatorios/vendas
+    /funcionarios
+    """
+
+    # Evita interceptar arquivos/rotas conhecidos
+    blocked_prefixes = (
+        "docs",
+        "redoc",
+        "openapi.json",
+        "assets",
+        "health",
+    )
+
+    if full_path.startswith(blocked_prefixes):
+        return JSONResponse(
+            status_code=404,
+            content={"success": False, "message": "Rota não encontrada"}
+        )
+
+    index_file = FRONTEND_DIST_DIR / "index.html"
+
+    if index_file.exists():
+        return FileResponse(index_file)
+
+    return JSONResponse(
+        status_code=503,
+        content={
+            "success": False,
+            "message": "Frontend buildado não encontrado. Execute o build do React."
+        }
+    )

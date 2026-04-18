@@ -14,6 +14,8 @@ import FuncionarioNovoVinculo from "./pages/FuncionarioNovoVinculo";
 import FuncionarioAnalise from "./pages/FuncionarioAnalise";
 import FuncionarioDetalhe from "./pages/FuncionarioDetalhe";
 import Performance from "./pages/Performance";
+import Login from "./pages/Login";
+import ProtectedRoute from "./routes/ProtectedRoute";
 
 function AppLayout() {
   return (
@@ -41,12 +43,27 @@ function AppLayout() {
           <Route path="/funcionarios/:id" element={<FuncionarioDetalhe />} />
 
           <Route path="/performance" element={<Performance />} />
+
+          <Route path="*" element={<Navigate to="/dashboard/vendas" replace />} />
         </Routes>
       </div>
     </div>
   );
 }
 
+function PrivateApp() {
+  return (
+    <ProtectedRoute>
+      <AppLayout />
+    </ProtectedRoute>
+  );
+}
+
 export default function App() {
-  return <AppLayout />;
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/*" element={<PrivateApp />} />
+    </Routes>
+  );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Topbar from "../components/Topbar";
+import api from "../services/api";
 import "../styles/dashboard.css";
 import "../styles/topbar.css";
 import "../styles/financeiro-dashboard.css";
@@ -150,15 +151,12 @@ function DashboardFinanceiro() {
           params.append("empresa_id", empresaId);
         }
 
-        const response = await fetch(
-          `http://localhost:8000/api/dashboard/financeiro?${params.toString()}`
+        const response = await api.get(
+          `/api/dashboard/financeiro?${params.toString()}`
         );
 
-        if (!response.ok) {
-          throw new Error("Erro ao carregar o dashboard financeiro");
-        }
+        const data = response.data;
 
-        const data = await response.json();
         console.log("DADOS BACKEND:", data);
 
         if (!cancelled) {

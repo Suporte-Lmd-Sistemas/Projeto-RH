@@ -15,6 +15,8 @@ import {
 } from "recharts";
 import Topbar from "../components/Topbar";
 import DashboardFilters from "../components/DashboardFilters";
+import api from "../services/api";
+import { useEmpresa } from "../context/EmpresaContext";
 import "../styles/dashboard.css";
 import "../styles/topbar.css";
 import "../styles/dashboard-vendas.css";
@@ -109,6 +111,8 @@ function preparePieData(items = [], limit = 8) {
 }
 
 function DashboardVendas() {
+  const { empresaAtual } = useEmpresa();
+
   const [filters, setFilters] = useState({
     period: "today",
     type: "faturamento",
@@ -158,15 +162,12 @@ function DashboardVendas() {
           params.set("end", filters.end);
         }
 
-        const url = `http://127.0.0.1:8000/api/dashboard/vendas?${params.toString()}`;
-
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          throw new Error("Não foi possível carregar o dashboard de vendas.");
+        if (empresaAtual?.id) {
+          params.set("empresa_id", String(empresaAtual.id));
         }
 
-        const data = await response.json();
+        const response = await api.get(`/api/dashboard/vendas?${params.toString()}`);
+        const data = response.data;
 
         if (!ignore) {
           setDashboardData({
@@ -207,7 +208,7 @@ function DashboardVendas() {
     return () => {
       ignore = true;
     };
-  }, [filters.period, filters.type, filters.start, filters.end]);
+  }, [filters.period, filters.type, filters.start, filters.end, empresaAtual?.id]);
 
   const historicoMeta = useMemo(() => {
     const raw = dashboardData.historico || [];
@@ -323,7 +324,12 @@ function DashboardVendas() {
 
   return (
     <div className="dashboard-page">
-      <Topbar titulo="Dashboard" caminho="Dashboard / Vendas" />
+      <Topbar
+        titulo="Dashboard de Vendas"
+        caminho="Dashboard / Vendas"
+        subtitulo="Visão geral das vendas e performance comercial"
+      />
+
       <DashboardFilters onChange={handleFilters} />
 
       {loading && (
