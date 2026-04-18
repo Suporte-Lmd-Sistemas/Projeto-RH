@@ -291,6 +291,7 @@
   font-size: 28px;
   font-weight: 800;
   line-height: 1.05;
+  word-break: break-word;
 }
 
 .performance-soft-card span {
@@ -307,16 +308,23 @@
 
 .performance-main-grid {
   display: grid;
-  grid-template-columns: 1.35fr 1fr;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
   gap: 18px;
   margin-bottom: 18px;
+  align-items: start;
 }
 
 .performance-two-columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 1fr);
   gap: 18px;
   margin-bottom: 18px;
+  align-items: start;
+}
+
+.performance-main-grid > .performance-box,
+.performance-two-columns > .performance-box {
+  align-self: start;
 }
 
 .performance-box {
@@ -324,7 +332,7 @@
 }
 
 .performance-box-large {
-  min-height: 420px;
+  min-height: 0;
 }
 
 .performance-section-title {
@@ -367,7 +375,7 @@
   display: flex;
   align-items: flex-end;
   gap: 14px;
-  min-height: 260px;
+  min-height: 180px;
   width: max-content;
   min-width: 100%;
   padding: 16px 8px 8px;
@@ -375,7 +383,7 @@
 }
 
 .performance-chart-bars-tall {
-  min-height: 320px;
+  min-height: 220px;
 }
 
 .performance-bar-column {
@@ -483,6 +491,7 @@
   color: #0f172a;
   font-size: 14px;
   line-height: 1.6;
+  word-break: break-word;
 }
 
 .performance-ranking-list {
@@ -510,6 +519,7 @@
   display: block;
   color: #0f172a;
   margin-bottom: 4px;
+  word-break: break-word;
 }
 
 .performance-ranking-top span {
@@ -626,4 +636,25 @@
   .performance-title {
     font-size: 24px;
   }
+
+  .performance-chart-bars,
+  .performance-chart-bars-tall {
+    min-height: 180px;
+  }
+}
+
+.performance-executive-grid {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.performance-executive-card strong,
+.performance-ranking-top strong,
+.performance-soft-card p {
+  word-break: break-word;
+}
+
+.performance-box:has(.performance-chart-scroll) {
+  overflow: hidden;
 }

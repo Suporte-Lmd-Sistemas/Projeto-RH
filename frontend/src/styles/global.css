@@ -18,3 +18,15 @@ a {
 button {
   cursor: pointer;
 }
+
+.app-content {
+  margin-left: 240px;
+  min-height: 100vh;
+  transition: margin-left 0.25s ease;
+}
+
+@media (max-width: 768px) {
+  .app-content {
+    margin-left: 74px;
+  }
+}

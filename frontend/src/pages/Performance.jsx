@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Topbar from "../components/Topbar";
 import api from "../services/api";
 import "../styles/dashboard.css";
@@ -45,6 +46,8 @@ function corDistribuicao(chave) {
 }
 
 function Performance() {
+  const navigate = useNavigate();
+
   const hoje = obterDataHoje();
   const primeiroDiaMesAtual = obterPrimeiroDiaMesAtual();
 
@@ -414,6 +417,28 @@ function Performance() {
     carregarPerformance();
   }
 
+ function lidarCliqueCard(itemKey) {
+  setFiltroResumoAtivo(itemKey);
+
+  if (itemKey === "inclusoes") {
+    navigate("/performance/inclusoes");
+    return;
+  }
+
+  if (itemKey === "alteracoes") {
+    navigate("/performance/alteracoes");
+    return;
+  }
+
+  if (itemKey === "exclusoes") {
+    navigate("/performance/exclusoes");
+    return;
+  }
+
+  if (itemKey === "cancelamentos") {
+    navigate("/performance/cancelamentos");
+  }
+}
   return (
     <div className="dashboard-page performance-page">
       <Topbar titulo="Performance" caminho="Performance" />
@@ -557,7 +582,7 @@ function Performance() {
           <button
             key={item.key}
             type="button"
-            onClick={() => setFiltroResumoAtivo(item.key)}
+            onClick={() => lidarCliqueCard(item.key)}
             className={`performance-kpi-card ${classeKpiPorChave(item.key)} ${
               filtroResumoAtivo === item.key ? "performance-kpi-card-active" : ""
             }`}
@@ -816,7 +841,6 @@ function Performance() {
                 <thead>
                   <tr>
                     <th>Funcionário</th>
-                    <th>Departamento</th>
                     <th>Total</th>
                     <th>Inclusões</th>
                     <th>Alterações</th>
@@ -829,7 +853,6 @@ function Performance() {
                   {tabelaResumoFiltrada.map((item) => (
                     <tr key={`${item.funcionario}-${item.departamento || "-"}`}>
                       <td>{item.funcionario}</td>
-                      <td>{item.departamento || "-"}</td>
                       <td>{formatarNumero(item.acoes)}</td>
                       <td>{formatarNumero(item.inclusoes)}</td>
                       <td>{formatarNumero(item.alteracoes)}</td>

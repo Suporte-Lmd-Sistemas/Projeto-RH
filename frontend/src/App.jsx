@@ -14,6 +14,10 @@ import FuncionarioNovoVinculo from "./pages/FuncionarioNovoVinculo";
 import FuncionarioAnalise from "./pages/FuncionarioAnalise";
 import FuncionarioDetalhe from "./pages/FuncionarioDetalhe";
 import Performance from "./pages/Performance";
+import PerformanceExclusoes from "./pages/PerformanceExclusoes";
+import PerformanceInclusoes from "./pages/PerformanceInclusoes";
+import PerformanceAlteracoes from "./pages/PerformanceAlteracoes";
+import PerformanceCancelamentos from "./pages/PerformanceCancelamentos";
 import Login from "./pages/Login";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
@@ -22,7 +26,7 @@ function AppLayout() {
     <div>
       <Sidebar />
 
-      <div style={{ marginLeft: "240px", minHeight: "100vh" }}>
+      <div className="app-content">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard/vendas" replace />} />
 
@@ -43,6 +47,13 @@ function AppLayout() {
           <Route path="/funcionarios/:id" element={<FuncionarioDetalhe />} />
 
           <Route path="/performance" element={<Performance />} />
+          <Route path="/performance/exclusoes" element={<PerformanceExclusoes />} />
+          <Route path="/performance/inclusoes" element={<PerformanceInclusoes />} />
+          <Route path="/performance/alteracoes" element={<PerformanceAlteracoes />} />
+          <Route
+            path="/performance/cancelamentos"
+            element={<PerformanceCancelamentos />}
+          />
 
           <Route path="*" element={<Navigate to="/dashboard/vendas" replace />} />
         </Routes>
