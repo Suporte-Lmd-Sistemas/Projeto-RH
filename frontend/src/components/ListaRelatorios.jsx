@@ -10,6 +10,21 @@ import "../styles/relatorios-lista.css";
 import "../styles/relatorio-preview.css";
 import "../styles/relatorio-table.css";
 
+const OPCOES_PANALISE = [
+  { VALUE: "GRUPO", LABEL: "Grupo" },
+  { VALUE: "MARCA", LABEL: "Marca" },
+  { VALUE: "CIDADE", LABEL: "Cidade" },
+  { VALUE: "CLIENTE", LABEL: "Cliente" },
+  { VALUE: "VENDEDOR", LABEL: "Vendedor" },
+  { VALUE: "REGIÃO", LABEL: "Região" },
+  { VALUE: "FORNECEDOR", LABEL: "Fornecedor" },
+];
+
+const OPCOES_TIPODATA = [
+  { VALUE: "EMISSAO", LABEL: "Emissão" },
+  { VALUE: "FATURAMENTO", LABEL: "Faturamento" },
+];
+
 function extrairParametrosDoDetalhe(detalhe) {
   const queries = Array.isArray(detalhe?.queries) ? detalhe.queries : [];
   const unicos = new Map();
@@ -72,6 +87,21 @@ function extrairParametrosDoDetalhe(detalhe) {
           } else if (chave.includes("NATUREZA")) {
             semanticKey = "natureza";
             defaultValue = 0;
+          } else if (chave.includes("GRUPO")) {
+            semanticKey = "grupo";
+            defaultValue = 0;
+          } else if (chave.includes("MARCA")) {
+            semanticKey = "marca";
+            defaultValue = 0;
+          } else if (chave.includes("CIDADE")) {
+            semanticKey = "cidade";
+            defaultValue = 0;
+          } else if (chave.includes("REGIAO") || chave.includes("REGIÃO")) {
+            semanticKey = "regiao";
+            defaultValue = 0;
+          } else if (chave.includes("FORNECEDOR")) {
+            semanticKey = "fornecedor";
+            defaultValue = 0;
           }
         } else if (
           datatype.includes("numeric") ||
@@ -81,6 +111,18 @@ function extrairParametrosDoDetalhe(detalhe) {
         ) {
           inferredType = "number";
           defaultValue = 0;
+        }
+
+        if (chave === "PANALISE") {
+          semanticKey = "analise";
+          inferredType = "str";
+          defaultValue = "GRUPO";
+        }
+
+        if (chave === "TIPODATA") {
+          semanticKey = "tipo_data";
+          inferredType = "str";
+          defaultValue = "EMISSAO";
         }
 
         unicos.set(chave, {
@@ -110,8 +152,18 @@ function formatarDataParaExibicao(valor) {
 function isTextoUtil(valor) {
   if (valor === null || valor === undefined) return false;
   const texto = String(valor).trim();
-  if (!texto) return false;
-  return true;
+  return Boolean(texto);
+}
+
+function isLabelRuim(valor) {
+  if (!isTextoUtil(valor)) return true;
+
+  const texto = String(valor).trim();
+
+  if (texto.length <= 1) return true;
+  if (/^[CJFSN]$/i.test(texto)) return true;
+
+  return false;
 }
 
 function escolherCampoValue(item = {}) {
@@ -134,6 +186,14 @@ function escolherCampoValue(item = {}) {
     "fun_id",
     "NOP_ID",
     "nop_id",
+    "PGRU_ID",
+    "pgru_id",
+    "PMAR_ID",
+    "pmar_id",
+    "CID_ID",
+    "cid_id",
+    "REG_ID",
+    "reg_id",
     "CODIGO",
     "codigo",
     "COD",
@@ -155,8 +215,6 @@ function escolherCampoLabel(item = {}, semanticKey = "") {
 
   const candidatasPorTipo = {
     empresa: [
-      "LABEL",
-      "label",
       "EMP_FANTASIA",
       "emp_fantasia",
       "EMP_RAZAO_SOCIAL",
@@ -165,10 +223,14 @@ function escolherCampoLabel(item = {}, semanticKey = "") {
       "nome",
       "DESCRICAO",
       "descricao",
-    ],
-    cliente: [
       "LABEL",
       "label",
+    ],
+    cliente: [
+      "pes_fantasia_apelido",
+      "PES_FANTASIA_APELIDO",
+      "pes_rsocial_nome",
+      "PES_RSOCIAL_NOME",
       "CLI_NOME",
       "cli_nome",
       "CLI_RAZAO_SOCIAL",
@@ -179,40 +241,92 @@ function escolherCampoLabel(item = {}, semanticKey = "") {
       "pes_nome",
       "PES_RAZAO_SOCIAL",
       "pes_razao_social",
-      "PES_FANTASIA_APELIDO",
-      "pes_fantasia_apelido",
       "NOME",
       "nome",
       "DESCRICAO",
       "descricao",
-    ],
-    vendedor: [
       "LABEL",
       "label",
+    ],
+    vendedor: [
       "VEN_NOME",
       "ven_nome",
       "FUN_NOME",
       "fun_nome",
       "PES_NOME",
       "pes_nome",
+      "pes_rsocial_nome",
+      "PES_RSOCIAL_NOME",
       "NOME",
       "nome",
       "DESCRICAO",
       "descricao",
-    ],
-    natureza: [
       "LABEL",
       "label",
+    ],
+    natureza: [
       "NOP_DESCRICAO",
       "nop_descricao",
       "DESCRICAO",
       "descricao",
       "NOME",
       "nome",
-    ],
-    default: [
       "LABEL",
       "label",
+    ],
+    grupo: [
+      "PGRU_DESCRICAO",
+      "pgru_descricao",
+      "DESCRICAO",
+      "descricao",
+      "NOME",
+      "nome",
+      "LABEL",
+      "label",
+    ],
+    marca: [
+      "PMAR_DESCRICAO",
+      "pmar_descricao",
+      "DESCRICAO",
+      "descricao",
+      "NOME",
+      "nome",
+      "LABEL",
+      "label",
+    ],
+    cidade: [
+      "CID_NOME",
+      "cid_nome",
+      "NOME",
+      "nome",
+      "DESCRICAO",
+      "descricao",
+      "LABEL",
+      "label",
+    ],
+    regiao: [
+      "REG_DESCRICAO",
+      "reg_descricao",
+      "DESCRICAO",
+      "descricao",
+      "NOME",
+      "nome",
+      "LABEL",
+      "label",
+    ],
+    fornecedor: [
+      "pes_fantasia_apelido",
+      "PES_FANTASIA_APELIDO",
+      "pes_rsocial_nome",
+      "PES_RSOCIAL_NOME",
+      "NOME",
+      "nome",
+      "DESCRICAO",
+      "descricao",
+      "LABEL",
+      "label",
+    ],
+    default: [
       "NOME",
       "nome",
       "DESCRICAO",
@@ -221,20 +335,34 @@ function escolherCampoLabel(item = {}, semanticKey = "") {
       "razao_social",
       "FANTASIA",
       "fantasia",
+      "LABEL",
+      "label",
     ],
   };
 
   const candidatas = candidatasPorTipo[semanticKey] || candidatasPorTipo.default;
 
   for (const chave of candidatas) {
-    if (chave in item && isTextoUtil(item[chave])) {
-      return item[chave];
+    if (!(chave in item)) continue;
+
+    const valor = item[chave];
+
+    if (chave === "LABEL" || chave === "label") {
+      if (!isLabelRuim(valor)) {
+        return valor;
+      }
+      continue;
+    }
+
+    if (isTextoUtil(valor)) {
+      return valor;
     }
   }
 
   const chaveNome = chaves.find((chave) =>
-    /(nome|descricao|razao|fantasia|apelido)/i.test(chave)
+    /(nome|descricao|razao|fantasia|apelido|social)/i.test(chave)
   );
+
   if (chaveNome && isTextoUtil(item[chaveNome])) {
     return item[chaveNome];
   }
@@ -248,9 +376,9 @@ function escolherCampoLabel(item = {}, semanticKey = "") {
     return valoresTextuais[0];
   }
 
-  const segundo = Object.values(item)[1];
-  if (isTextoUtil(segundo)) {
-    return segundo;
+  const labelOriginal = item.LABEL ?? item.label;
+  if (isTextoUtil(labelOriginal)) {
+    return labelOriginal;
   }
 
   const primeiro = Object.values(item)[0];
@@ -260,7 +388,7 @@ function escolherCampoLabel(item = {}, semanticKey = "") {
 function normalizarListaOpcoes(lista = [], semanticKey = "") {
   if (!Array.isArray(lista)) return [];
 
-  return lista.map((item, index) => {
+  return lista.map((item) => {
     if (item && typeof item === "object") {
       const value = escolherCampoValue(item);
       const label = escolherCampoLabel(item, semanticKey);
@@ -282,11 +410,12 @@ function normalizarListaOpcoes(lista = [], semanticKey = "") {
 function adicionarOpcaoTodos(lista = [], semanticKey = "") {
   const listaNormalizada = normalizarListaOpcoes(lista, semanticKey);
 
-  if (!["vendedor", "cliente", "natureza"].includes(semanticKey)) {
+  if (!["vendedor", "cliente", "natureza", "grupo", "marca", "cidade", "regiao", "fornecedor"].includes(semanticKey)) {
     return listaNormalizada;
   }
 
-  const labelPadrao = semanticKey === "natureza" ? "Todas" : "Todos";
+  const labelPadrao =
+    semanticKey === "natureza" ? "Todas" : "Todos";
 
   const jaExisteZero = listaNormalizada.some(
     (item) => String(item.VALUE) === "0"
@@ -316,6 +445,20 @@ function formatarFiltroParaExibicao(chave, valor, opcoes) {
     return formatarDataParaExibicao(valor);
   }
 
+  if (chaveNormalizada === "PANALISE") {
+    const encontrado = OPCOES_PANALISE.find(
+      (item) => String(item.VALUE) === String(valor)
+    );
+    return encontrado?.LABEL ?? String(valor);
+  }
+
+  if (chaveNormalizada === "TIPODATA") {
+    const encontrado = OPCOES_TIPODATA.find(
+      (item) => String(item.VALUE) === String(valor)
+    );
+    return encontrado?.LABEL ?? String(valor);
+  }
+
   if (chaveNormalizada.includes("EMPRESA")) {
     const lista = normalizarListaOpcoes(opcoes?.empresas, "empresa");
     const encontrado = lista.find((item) => String(item.VALUE) === String(valor));
@@ -324,21 +467,56 @@ function formatarFiltroParaExibicao(chave, valor, opcoes) {
 
   if (chaveNormalizada.includes("VENDEDOR")) {
     if (Number(valor) === 0) return "Todos";
-    const lista = adicionarOpcaoTodos(opcoes?.vendedores, "vendedor");
+    const lista = adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoes, "vendedor"), "vendedor");
     const encontrado = lista.find((item) => String(item.VALUE) === String(valor));
     return encontrado?.LABEL ?? String(valor);
   }
 
   if (chaveNormalizada.includes("CLIENTE")) {
     if (Number(valor) === 0) return "Todos";
-    const lista = adicionarOpcaoTodos(opcoes?.clientes, "cliente");
+    const lista = adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoes, "cliente"), "cliente");
     const encontrado = lista.find((item) => String(item.VALUE) === String(valor));
     return encontrado?.LABEL ?? String(valor);
   }
 
   if (chaveNormalizada.includes("NATUREZA")) {
     if (Number(valor) === 0) return "Todas";
-    const lista = adicionarOpcaoTodos(opcoes?.naturezas, "natureza");
+    const lista = adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoes, "natureza"), "natureza");
+    const encontrado = lista.find((item) => String(item.VALUE) === String(valor));
+    return encontrado?.LABEL ?? String(valor);
+  }
+
+  if (chaveNormalizada.includes("GRUPO")) {
+    if (Number(valor) === 0) return "Todos";
+    const lista = adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoes, "grupo"), "grupo");
+    const encontrado = lista.find((item) => String(item.VALUE) === String(valor));
+    return encontrado?.LABEL ?? String(valor);
+  }
+
+  if (chaveNormalizada.includes("MARCA")) {
+    if (Number(valor) === 0) return "Todos";
+    const lista = adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoes, "marca"), "marca");
+    const encontrado = lista.find((item) => String(item.VALUE) === String(valor));
+    return encontrado?.LABEL ?? String(valor);
+  }
+
+  if (chaveNormalizada.includes("CIDADE")) {
+    if (Number(valor) === 0) return "Todos";
+    const lista = adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoes, "cidade"), "cidade");
+    const encontrado = lista.find((item) => String(item.VALUE) === String(valor));
+    return encontrado?.LABEL ?? String(valor);
+  }
+
+  if (chaveNormalizada.includes("REGIAO") || chaveNormalizada.includes("REGIÃO")) {
+    if (Number(valor) === 0) return "Todos";
+    const lista = adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoes, "regiao"), "regiao");
+    const encontrado = lista.find((item) => String(item.VALUE) === String(valor));
+    return encontrado?.LABEL ?? String(valor);
+  }
+
+  if (chaveNormalizada.includes("FORNECEDOR")) {
+    if (Number(valor) === 0) return "Todos";
+    const lista = adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoes, "fornecedor"), "fornecedor");
     const encontrado = lista.find((item) => String(item.VALUE) === String(valor));
     return encontrado?.LABEL ?? String(valor);
   }
@@ -378,6 +556,31 @@ function Modal({ aberto, titulo, subtitulo, onFechar, children, largura = "920px
   );
 }
 
+function obterListaOpcoesPorSemanticKey(opcoes = {}, semanticKey = "") {
+  const mapa = {
+    empresa: ["empresas"],
+    vendedor: ["vendedores", "query_qryvendedor", "qryvendedor"],
+    cliente: ["clientes", "query_qrycliente", "qrycliente"],
+    natureza: ["naturezas", "query_qrynatureza", "qrynatureza"],
+    grupo: ["grupos", "query_qrygrupo", "qrygrupo"],
+    marca: ["marcas", "query_qrymarca", "qrymarca"],
+    cidade: ["cidades", "query_qrycidade", "qrycidade"],
+    regiao: ["regioes", "regiões", "query_qryregiao", "qryregiao"],
+    fornecedor: ["fornecedores", "query_qryfornecedor", "qryfornecedor"],
+  };
+
+  const chaves = mapa[semanticKey] || [];
+
+  for (const chave of chaves) {
+    const valor = opcoes?.[chave];
+    if (Array.isArray(valor) && valor.length >= 0) {
+      return valor;
+    }
+  }
+
+  return [];
+}
+
 export default function ListaRelatorios({ categoria, titulo }) {
   const [loadingLista, setLoadingLista] = useState(true);
   const [erroLista, setErroLista] = useState("");
@@ -399,6 +602,11 @@ export default function ListaRelatorios({ categoria, titulo }) {
     vendedores: [],
     naturezas: [],
     clientes: [],
+    grupos: [],
+    marcas: [],
+    cidades: [],
+    regioes: [],
+    fornecedores: [],
   });
   const [form, setForm] = useState({});
   const [previewData, setPreviewData] = useState(null);
@@ -482,6 +690,11 @@ export default function ListaRelatorios({ categoria, titulo }) {
       vendedores: [],
       naturezas: [],
       clientes: [],
+      grupos: [],
+      marcas: [],
+      cidades: [],
+      regioes: [],
+      fornecedores: [],
     });
     setForm({});
     setPreviewData(null);
@@ -508,9 +721,14 @@ export default function ListaRelatorios({ categoria, titulo }) {
 
       const opcoesNormalizadas = {
         empresas: normalizarListaOpcoes(opcoesResp?.empresas, "empresa"),
-        vendedores: adicionarOpcaoTodos(opcoesResp?.vendedores, "vendedor"),
-        naturezas: adicionarOpcaoTodos(opcoesResp?.naturezas, "natureza"),
-        clientes: adicionarOpcaoTodos(opcoesResp?.clientes, "cliente"),
+        vendedores: adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoesResp, "vendedor"), "vendedor"),
+        naturezas: adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoesResp, "natureza"), "natureza"),
+        clientes: adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoesResp, "cliente"), "cliente"),
+        grupos: adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoesResp, "grupo"), "grupo"),
+        marcas: adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoesResp, "marca"), "marca"),
+        cidades: adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoesResp, "cidade"), "cidade"),
+        regioes: adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoesResp, "regiao"), "regiao"),
+        fornecedores: adicionarOpcaoTodos(obterListaOpcoesPorSemanticKey(opcoesResp, "fornecedor"), "fornecedor"),
         ...opcoesResp,
       };
 
@@ -522,7 +740,6 @@ export default function ListaRelatorios({ categoria, titulo }) {
 
         if (param.semantic_key === "empresa") {
           const primeiraEmpresa = opcoesNormalizadas.empresas?.[0];
-
           if (
             valorInicial === "" ||
             valorInicial === null ||
@@ -532,8 +749,16 @@ export default function ListaRelatorios({ categoria, titulo }) {
           }
         }
 
+        if (param.semantic_key === "analise" && !valorInicial) {
+          valorInicial = "GRUPO";
+        }
+
+        if (param.semantic_key === "tipo_data" && !valorInicial) {
+          valorInicial = "EMISSAO";
+        }
+
         if (
-          ["vendedor", "cliente", "natureza"].includes(param.semantic_key) &&
+          ["vendedor", "cliente", "natureza", "grupo", "marca", "cidade", "regiao", "fornecedor"].includes(param.semantic_key) &&
           (valorInicial === "" || valorInicial === null || valorInicial === undefined)
         ) {
           valorInicial = 0;
@@ -573,10 +798,18 @@ export default function ListaRelatorios({ categoria, titulo }) {
         let valor = form[param.original_name];
 
         if (
-          ["vendedor", "cliente", "natureza"].includes(param.semantic_key) &&
+          ["vendedor", "cliente", "natureza", "grupo", "marca", "cidade", "regiao", "fornecedor"].includes(param.semantic_key) &&
           (valor === "" || valor === null || valor === undefined)
         ) {
           valor = 0;
+        }
+
+        if (param.semantic_key === "analise" && !valor) {
+          valor = "GRUPO";
+        }
+
+        if (param.semantic_key === "tipo_data" && !valor) {
+          valor = "EMISSAO";
         }
 
         payload[param.original_name] = valor;
@@ -644,6 +877,26 @@ export default function ListaRelatorios({ categoria, titulo }) {
       );
     }
 
+    if (param.semantic_key === "analise") {
+      return renderSelect(
+        OPCOES_PANALISE,
+        valor,
+        (e) => atualizarCampo(param.original_name, e.target.value),
+        "Selecione",
+        "analise"
+      );
+    }
+
+    if (param.semantic_key === "tipo_data") {
+      return renderSelect(
+        OPCOES_TIPODATA,
+        valor,
+        (e) => atualizarCampo(param.original_name, e.target.value),
+        "Selecione",
+        "tipo_data"
+      );
+    }
+
     if (param.semantic_key === "empresa") {
       return renderSelect(
         opcoes.empresas,
@@ -681,6 +934,56 @@ export default function ListaRelatorios({ categoria, titulo }) {
         (e) => atualizarCampo(param.original_name, Number(e.target.value)),
         "Todas",
         "natureza"
+      );
+    }
+
+    if (param.semantic_key === "grupo") {
+      return renderSelect(
+        opcoes.grupos,
+        valor,
+        (e) => atualizarCampo(param.original_name, Number(e.target.value)),
+        "Todos",
+        "grupo"
+      );
+    }
+
+    if (param.semantic_key === "marca") {
+      return renderSelect(
+        opcoes.marcas,
+        valor,
+        (e) => atualizarCampo(param.original_name, Number(e.target.value)),
+        "Todos",
+        "marca"
+      );
+    }
+
+    if (param.semantic_key === "cidade") {
+      return renderSelect(
+        opcoes.cidades,
+        valor,
+        (e) => atualizarCampo(param.original_name, Number(e.target.value)),
+        "Todos",
+        "cidade"
+      );
+    }
+
+    if (param.semantic_key === "regiao") {
+      return renderSelect(
+        opcoes.regioes,
+        valor,
+        (e) => atualizarCampo(param.original_name, Number(e.target.value)),
+        "Todos",
+        "regiao"
+      );
+    }
+
+    if (param.semantic_key === "fornecedor") {
+      return renderSelect(
+        opcoes.fornecedores,
+        valor,
+        (e) => atualizarCampo(param.original_name, Number(e.target.value)),
+        "Todos",
+        "fornecedor"
       );
     }
 

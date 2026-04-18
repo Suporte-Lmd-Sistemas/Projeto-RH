@@ -179,7 +179,7 @@ class RelatoriosService:
                     inferred_type = "date"
 
                     if "INICIAL" in chave or "INICIO" in chave:
-                        semantic_key = "empresa" if False else "data_inicial"
+                        semantic_key = "data_inicial"
                         default_value = primeiro_dia.isoformat()
                     elif "FINAL" in chave or "FIM" in chave:
                         semantic_key = "data_final"
@@ -204,6 +204,16 @@ class RelatoriosService:
                         semantic_key = "cliente"
                     elif "NATUREZA" in chave:
                         semantic_key = "natureza"
+                    elif "GRUPO" in chave:
+                        semantic_key = "grupo"
+                    elif "MARCA" in chave:
+                        semantic_key = "marca"
+                    elif "CIDADE" in chave:
+                        semantic_key = "cidade"
+                    elif "REGIAO" in chave or "REGIÃO" in chave:
+                        semantic_key = "regiao"
+                    elif "FORNECEDOR" in chave:
+                        semantic_key = "fornecedor"
 
                 elif any(
                     item in datatype
@@ -211,6 +221,16 @@ class RelatoriosService:
                 ):
                     inferred_type = "number"
                     default_value = 0
+
+                if chave == "PANALISE":
+                    semantic_key = "analise"
+                    inferred_type = "str"
+                    default_value = "GRUPO"
+
+                if chave == "TIPODATA":
+                    semantic_key = "tipo_data"
+                    inferred_type = "str"
+                    default_value = "EMISSAO"
 
                 unicos[chave] = {
                     "original_name": original_name,
@@ -342,13 +362,11 @@ class RelatoriosService:
         if not nome_limpo:
             return {}
 
-        aliases = {
+        return {
             nome_limpo: valor,
             nome_limpo.upper(): valor,
             nome_limpo.lower(): valor,
         }
-
-        return aliases
 
     def _montar_parametros_execucao(
         self,
@@ -451,10 +469,27 @@ class RelatoriosService:
 
         if "VENDED" in texto:
             return "vendedores"
+
         if "NATUREZA" in texto or "NOP_" in texto:
             return "naturezas"
+
         if "CLIENTE" in texto or "CLI_" in texto:
             return "clientes"
+
+        if "GRUPO" in texto or "PGRU_" in texto:
+            return "grupos"
+
+        if "MARCA" in texto or "PMAR_" in texto:
+            return "marcas"
+
+        if "CIDADE" in texto or "CID_" in texto:
+            return "cidades"
+
+        if "REGIAO" in texto or "REGIÃO" in texto or "REG_" in texto:
+            return "regioes"
+
+        if "FORNECEDOR" in texto or "FORNEC" in texto:
+            return "fornecedores"
 
         nome = str(query.get("name") or query.get("user_name") or "opcao").strip()
         nome = nome.lower() or "opcao"
@@ -486,12 +521,10 @@ class RelatoriosService:
             razao = row_dict.get("EMP_RAZAO_SOCIAL") or row_dict.get("emp_razao_social") or ""
             cnpj = row_dict.get("EMP_CNPJ") or row_dict.get("emp_cnpj") or ""
 
-            label_base = fantasia or razao or f"Empresa {emp_id}"
-
             if fantasia and razao and fantasia != razao:
                 label = f"{fantasia} - {razao}"
             else:
-                label = label_base
+                label = fantasia or razao or f"Empresa {emp_id}"
 
             if cnpj:
                 label = f"{label} ({cnpj})"
@@ -509,6 +542,24 @@ class RelatoriosService:
 
         return empresas
 
+    def _normalizar_linhas_opcoes(self, linhas: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        normalizadas: List[Dict[str, Any]] = []
+
+        for idx, linha in enumerate(linhas):
+            valores = list(linha.values())
+            value = valores[0] if len(valores) > 0 else idx
+            label = valores[1] if len(valores) > 1 else value
+
+            normalizadas.append(
+                {
+                    "VALUE": value,
+                    "LABEL": str(label),
+                    **linha,
+                }
+            )
+
+        return normalizadas
+
     def opcoes_relatorio(self, cdarquivo: int) -> Dict[str, Any]:
         info = self._parse_relatorio(cdarquivo)
         parsed = info["parsed"]
@@ -521,6 +572,11 @@ class RelatoriosService:
             "vendedores": [],
             "naturezas": [],
             "clientes": [],
+            "grupos": [],
+            "marcas": [],
+            "cidades": [],
+            "regioes": [],
+            "fornecedores": [],
         }
 
         for query in queries:
@@ -544,23 +600,17 @@ class RelatoriosService:
 
             chave = self._classificar_opcao_query(query)
 
-            if chave in {"vendedores", "naturezas", "clientes"}:
-                normalizadas = []
-
-                for idx, linha in enumerate(linhas):
-                    valores = list(linha.values())
-                    value = valores[0] if len(valores) > 0 else idx
-                    label = valores[1] if len(valores) > 1 else value
-
-                    normalizadas.append(
-                        {
-                            "VALUE": value,
-                            "LABEL": str(label),
-                            **linha,
-                        }
-                    )
-
-                opcoes[chave] = normalizadas
+            if chave in {
+                "vendedores",
+                "naturezas",
+                "clientes",
+                "grupos",
+                "marcas",
+                "cidades",
+                "regioes",
+                "fornecedores",
+            }:
+                opcoes[chave] = self._normalizar_linhas_opcoes(linhas)
             else:
                 opcoes[chave] = linhas
 
