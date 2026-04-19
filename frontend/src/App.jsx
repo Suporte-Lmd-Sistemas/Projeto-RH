@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import DashboardVendas from "./pages/DashboardVendas";
@@ -22,37 +23,116 @@ import Login from "./pages/Login";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 function AppLayout() {
+  const [isMobileOrTablet, setIsMobileOrTablet] = useState(window.innerWidth <= 1024);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    function handleResize() {
+      const isResponsive = window.innerWidth <= 1024;
+      setIsMobileOrTablet(isResponsive);
+
+      if (!isResponsive) {
+        setSidebarOpen(false);
+      }
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  function handleToggleSidebar() {
+    if (isMobileOrTablet) {
+      setSidebarOpen((prev) => !prev);
+    }
+  }
+
+  function handleCloseSidebar() {
+    setSidebarOpen(false);
+  }
+
+  const sharedLayoutProps = {
+    onToggleSidebar: handleToggleSidebar,
+    isMobileOrTablet,
+  };
+
   return (
-    <div>
-      <Sidebar />
+    <div className="app-shell">
+      <Sidebar
+        isMobileOrTablet={isMobileOrTablet}
+        isOpen={sidebarOpen}
+        onClose={handleCloseSidebar}
+      />
+
+      {isMobileOrTablet && sidebarOpen && (
+        <div className="sidebar-backdrop" onClick={handleCloseSidebar} />
+      )}
 
       <div className="app-content">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard/vendas" replace />} />
 
-          <Route path="/dashboard/vendas" element={<DashboardVendas />} />
-          <Route path="/dashboard/financeiro" element={<DashboardFinanceiro />} />
-          <Route path="/dashboard/multiempresa" element={<DashboardMultiEmpresa />} />
+          <Route path="/dashboard/vendas" element={<DashboardVendas {...sharedLayoutProps} />} />
+          <Route
+            path="/dashboard/financeiro"
+            element={<DashboardFinanceiro {...sharedLayoutProps} />}
+          />
+          <Route
+            path="/dashboard/multiempresa"
+            element={<DashboardMultiEmpresa {...sharedLayoutProps} />}
+          />
 
-          <Route path="/relatorios" element={<Relatorios />} />
-          <Route path="/relatorios/vendas" element={<RelatoriosVendas />} />
-          <Route path="/relatorios/preview" element={<RelatorioPreviewPage />} />
-          <Route path="/relatorios/financeiro" element={<RelatoriosFinanceiro />} />
-          <Route path="/relatorios/consultoria" element={<RelatoriosConsultoria />} />
-          <Route path="/relatorios/diversos" element={<RelatoriosDiversos />} />
+          <Route path="/relatorios" element={<Relatorios {...sharedLayoutProps} />} />
+          <Route
+            path="/relatorios/vendas"
+            element={<RelatoriosVendas {...sharedLayoutProps} />}
+          />
+          <Route
+            path="/relatorios/preview"
+            element={<RelatorioPreviewPage {...sharedLayoutProps} />}
+          />
+          <Route
+            path="/relatorios/financeiro"
+            element={<RelatoriosFinanceiro {...sharedLayoutProps} />}
+          />
+          <Route
+            path="/relatorios/consultoria"
+            element={<RelatoriosConsultoria {...sharedLayoutProps} />}
+          />
+          <Route
+            path="/relatorios/diversos"
+            element={<RelatoriosDiversos {...sharedLayoutProps} />}
+          />
 
-          <Route path="/funcionarios" element={<Funcionarios />} />
-          <Route path="/funcionarios/novo" element={<FuncionarioNovoVinculo />} />
-          <Route path="/funcionarios/:id/analise" element={<FuncionarioAnalise />} />
-          <Route path="/funcionarios/:id" element={<FuncionarioDetalhe />} />
+          <Route path="/funcionarios" element={<Funcionarios {...sharedLayoutProps} />} />
+          <Route
+            path="/funcionarios/novo"
+            element={<FuncionarioNovoVinculo {...sharedLayoutProps} />}
+          />
+          <Route
+            path="/funcionarios/:id/analise"
+            element={<FuncionarioAnalise {...sharedLayoutProps} />}
+          />
+          <Route
+            path="/funcionarios/:id"
+            element={<FuncionarioDetalhe {...sharedLayoutProps} />}
+          />
 
-          <Route path="/performance" element={<Performance />} />
-          <Route path="/performance/exclusoes" element={<PerformanceExclusoes />} />
-          <Route path="/performance/inclusoes" element={<PerformanceInclusoes />} />
-          <Route path="/performance/alteracoes" element={<PerformanceAlteracoes />} />
+          <Route path="/performance" element={<Performance {...sharedLayoutProps} />} />
+          <Route
+            path="/performance/exclusoes"
+            element={<PerformanceExclusoes {...sharedLayoutProps} />}
+          />
+          <Route
+            path="/performance/inclusoes"
+            element={<PerformanceInclusoes {...sharedLayoutProps} />}
+          />
+          <Route
+            path="/performance/alteracoes"
+            element={<PerformanceAlteracoes {...sharedLayoutProps} />}
+          />
           <Route
             path="/performance/cancelamentos"
-            element={<PerformanceCancelamentos />}
+            element={<PerformanceCancelamentos {...sharedLayoutProps} />}
           />
 
           <Route path="*" element={<Navigate to="/dashboard/vendas" replace />} />

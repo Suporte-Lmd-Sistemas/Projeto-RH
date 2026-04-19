@@ -19,14 +19,26 @@ button {
   cursor: pointer;
 }
 
+.app-shell {
+  position: relative;
+}
+
 .app-content {
   margin-left: 240px;
   min-height: 100vh;
   transition: margin-left 0.25s ease;
 }
 
-@media (max-width: 768px) {
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  z-index: 1050;
+  backdrop-filter: blur(2px);
+}
+
+@media (max-width: 1024px) {
   .app-content {
-    margin-left: 74px;
+    margin-left: 0;
   }
 }

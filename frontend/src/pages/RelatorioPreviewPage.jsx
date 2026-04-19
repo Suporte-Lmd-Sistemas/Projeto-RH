@@ -12,6 +12,138 @@ import "../styles/topbar.css";
 import "../styles/relatorio-preview.css";
 import "../styles/relatorio-table.css";
 
+const OPCOES_ANALISE = [
+  { VALUE: "GRUPO", LABEL: "Grupo" },
+  { VALUE: "MARCA", LABEL: "Marca" },
+  { VALUE: "PRODUTO", LABEL: "Produto" },
+  { VALUE: "VENDEDOR", LABEL: "Vendedor" },
+  { VALUE: "CLIENTE", LABEL: "Cliente" },
+];
+
+const OPCOES_TIPO_DATA = [
+  { VALUE: "EMISSAO", LABEL: "Emissão" },
+  { VALUE: "FATURAMENTO", LABEL: "Faturamento" },
+  { VALUE: "MOVIMENTO", LABEL: "Movimento" },
+  { VALUE: "ENTRADA", LABEL: "Entrada" },
+  { VALUE: "SAIDA", LABEL: "Saída" },
+];
+
+function inferirMetadataParametro(nomeOriginal, datatype = "") {
+  const chave = String(nomeOriginal || "").toUpperCase().trim();
+  const tipo = String(datatype || "").toLowerCase().trim();
+
+  let inferredType = "str";
+  let semanticKey = chave.toLowerCase();
+  let defaultValue = "";
+
+  if (tipo.includes("date")) {
+    inferredType = "date";
+
+    const hoje = new Date();
+    const yyyy = hoje.getFullYear();
+    const mm = String(hoje.getMonth() + 1).padStart(2, "0");
+    const dd = String(hoje.getDate()).padStart(2, "0");
+
+    const primeiroDia = `${yyyy}-${mm}-01`;
+    const hojeIso = `${yyyy}-${mm}-${dd}`;
+
+    if (chave.includes("INICIAL") || chave.includes("INICIO")) {
+      semanticKey = "data_inicial";
+      defaultValue = primeiroDia;
+    } else if (chave.includes("FINAL") || chave.includes("FIM")) {
+      semanticKey = "data_final";
+      defaultValue = hojeIso;
+    } else {
+      semanticKey = "data";
+      defaultValue = hojeIso;
+    }
+  } else if (
+    tipo.includes("integer") ||
+    tipo.includes("smallint") ||
+    tipo.includes("bigint") ||
+    tipo.includes("int")
+  ) {
+    inferredType = "int";
+    defaultValue = 0;
+  } else if (
+    tipo.includes("numeric") ||
+    tipo.includes("float") ||
+    tipo.includes("double") ||
+    tipo.includes("decimal")
+  ) {
+    inferredType = "number";
+    defaultValue = 0;
+  }
+
+  if (chave.includes("EMPRESA")) {
+    semanticKey = "empresa";
+    if (defaultValue === "") defaultValue = 1;
+  } else if (chave.includes("VENDEDOR")) {
+    semanticKey = "vendedor";
+    if (defaultValue === "") defaultValue = 0;
+  } else if (chave.includes("CLIENTE")) {
+    semanticKey = "cliente";
+    if (defaultValue === "") defaultValue = 0;
+  } else if (chave.includes("NATUREZA")) {
+    semanticKey = "natureza";
+    if (defaultValue === "") defaultValue = 0;
+  } else if (chave.includes("GRUPO")) {
+    semanticKey = "grupo";
+    if (defaultValue === "") defaultValue = 0;
+  } else if (chave.includes("MARCA")) {
+    semanticKey = "marca";
+    if (defaultValue === "") defaultValue = 0;
+  } else if (chave.includes("CIDADE")) {
+    semanticKey = "cidade";
+    if (defaultValue === "") defaultValue = 0;
+  } else if (chave.includes("REGIAO") || chave.includes("REGIÃO")) {
+    semanticKey = "regiao";
+    if (defaultValue === "") defaultValue = 0;
+  } else if (chave.includes("FORNECEDOR")) {
+    semanticKey = "fornecedor";
+    if (defaultValue === "") defaultValue = 0;
+  }
+
+  if (chave === "PANALISE") {
+    semanticKey = "analise";
+    inferredType = "str";
+    defaultValue = "GRUPO";
+  }
+
+  if (chave === "TIPODATA") {
+    semanticKey = "tipo_data";
+    inferredType = "str";
+    defaultValue = "EMISSAO";
+  }
+
+  return {
+    original_name: nomeOriginal,
+    inferred_type: inferredType,
+    semantic_key: semanticKey,
+    default_value: defaultValue,
+  };
+}
+
+function normalizarParametrosDetectados(lista = []) {
+  if (!Array.isArray(lista)) return [];
+
+  return lista.map((param) => {
+    const nomeOriginal = param?.original_name || param?.name || "";
+    const datatype = param?.datatype || param?.inferred_type || "";
+    const inferido = inferirMetadataParametro(nomeOriginal, datatype);
+
+    return {
+      ...inferido,
+      ...param,
+      original_name: nomeOriginal,
+      inferred_type: param?.inferred_type || inferido.inferred_type,
+      semantic_key: inferido.semantic_key,
+      default_value:
+        param?.default_value !== undefined ? param.default_value : inferido.default_value,
+    };
+  });
+}
+
 function extrairParametrosDoDetalhe(detalhe) {
   const queries = Array.isArray(detalhe?.queries) ? detalhe.queries : [];
   const unicos = new Map();
@@ -28,69 +160,7 @@ function extrairParametrosDoDetalhe(detalhe) {
       const chave = String(nomeOriginal).toUpperCase();
 
       if (!unicos.has(chave)) {
-        let inferredType = "str";
-        let semanticKey = chave.toLowerCase();
-        let defaultValue = "";
-
-        if (datatype.includes("date")) {
-          inferredType = "date";
-
-          const hoje = new Date();
-          const yyyy = hoje.getFullYear();
-          const mm = String(hoje.getMonth() + 1).padStart(2, "0");
-          const dd = String(hoje.getDate()).padStart(2, "0");
-
-          const primeiroDia = `${yyyy}-${mm}-01`;
-          const hojeIso = `${yyyy}-${mm}-${dd}`;
-
-          if (chave.includes("INICIAL") || chave.includes("INICIO")) {
-            semanticKey = "data_inicial";
-            defaultValue = primeiroDia;
-          } else if (chave.includes("FINAL") || chave.includes("FIM")) {
-            semanticKey = "data_final";
-            defaultValue = hojeIso;
-          } else {
-            semanticKey = "data";
-            defaultValue = hojeIso;
-          }
-        } else if (
-          datatype.includes("integer") ||
-          datatype.includes("smallint") ||
-          datatype.includes("bigint") ||
-          datatype.includes("int")
-        ) {
-          inferredType = "int";
-          defaultValue = 0;
-
-          if (chave.includes("EMPRESA")) {
-            semanticKey = "empresa";
-            defaultValue = 1;
-          } else if (chave.includes("VENDEDOR")) {
-            semanticKey = "vendedor";
-            defaultValue = 0;
-          } else if (chave.includes("CLIENTE")) {
-            semanticKey = "cliente";
-            defaultValue = 0;
-          } else if (chave.includes("NATUREZA")) {
-            semanticKey = "natureza";
-            defaultValue = 0;
-          }
-        } else if (
-          datatype.includes("numeric") ||
-          datatype.includes("float") ||
-          datatype.includes("double") ||
-          datatype.includes("decimal")
-        ) {
-          inferredType = "number";
-          defaultValue = 0;
-        }
-
-        unicos.set(chave, {
-          original_name: nomeOriginal,
-          inferred_type: inferredType,
-          semantic_key: semanticKey,
-          default_value: defaultValue,
-        });
+        unicos.set(chave, inferirMetadataParametro(nomeOriginal, datatype));
       }
     }
   }
@@ -148,6 +218,23 @@ function normalizarListaOpcoes(lista = []) {
   });
 }
 
+function buscarLabelOpcao(lista, valor, textoPadraoZero = null) {
+  const listaNormalizada = normalizarListaOpcoes(lista);
+  const encontrado = listaNormalizada.find(
+    (item) => String(item.VALUE) === String(valor)
+  );
+
+  if (encontrado) {
+    return encontrado.LABEL;
+  }
+
+  if (Number(valor) === 0 && textoPadraoZero) {
+    return textoPadraoZero;
+  }
+
+  return String(valor);
+}
+
 function formatarFiltroParaExibicao(chave, valor, opcoes) {
   if (valor === null || valor === undefined || valor === "") {
     return "Não informado";
@@ -159,39 +246,48 @@ function formatarFiltroParaExibicao(chave, valor, opcoes) {
     return formatarDataParaExibicao(valor);
   }
 
+  if (chaveNormalizada === "PANALISE") {
+    return buscarLabelOpcao(opcoes?.analises, valor);
+  }
+
+  if (chaveNormalizada === "TIPODATA") {
+    return buscarLabelOpcao(opcoes?.tiposData, valor);
+  }
+
   if (chaveNormalizada.includes("EMPRESA")) {
-    const lista = normalizarListaOpcoes(opcoes?.empresas);
-    const encontrado = lista.find(
-      (item) => String(item.VALUE) === String(valor)
-    );
-    return encontrado?.LABEL ?? String(valor);
+    return buscarLabelOpcao(opcoes?.empresas, valor);
   }
 
   if (chaveNormalizada.includes("VENDEDOR")) {
-    const lista = normalizarListaOpcoes(opcoes?.vendedores);
-    const encontrado = lista.find(
-      (item) => String(item.VALUE) === String(valor)
-    );
-    if (Number(valor) === 0 && !encontrado) return "Todos";
-    return encontrado?.LABEL ?? String(valor);
+    return buscarLabelOpcao(opcoes?.vendedores, valor, "Todos");
   }
 
   if (chaveNormalizada.includes("CLIENTE")) {
-    const lista = normalizarListaOpcoes(opcoes?.clientes);
-    const encontrado = lista.find(
-      (item) => String(item.VALUE) === String(valor)
-    );
-    if (Number(valor) === 0 && !encontrado) return "Todos";
-    return encontrado?.LABEL ?? String(valor);
+    return buscarLabelOpcao(opcoes?.clientes, valor, "Todos");
   }
 
   if (chaveNormalizada.includes("NATUREZA")) {
-    const lista = normalizarListaOpcoes(opcoes?.naturezas);
-    const encontrado = lista.find(
-      (item) => String(item.VALUE) === String(valor)
-    );
-    if (Number(valor) === 0 && !encontrado) return "Todas";
-    return encontrado?.LABEL ?? String(valor);
+    return buscarLabelOpcao(opcoes?.naturezas, valor, "Todas");
+  }
+
+  if (chaveNormalizada.includes("GRUPO")) {
+    return buscarLabelOpcao(opcoes?.grupos, valor, "Todos");
+  }
+
+  if (chaveNormalizada.includes("MARCA")) {
+    return buscarLabelOpcao(opcoes?.marcas, valor, "Todas");
+  }
+
+  if (chaveNormalizada.includes("CIDADE")) {
+    return buscarLabelOpcao(opcoes?.cidades, valor, "Todas");
+  }
+
+  if (chaveNormalizada.includes("REGIAO") || chaveNormalizada.includes("REGIÃO")) {
+    return buscarLabelOpcao(opcoes?.regioes, valor, "Todas");
+  }
+
+  if (chaveNormalizada.includes("FORNECEDOR")) {
+    return buscarLabelOpcao(opcoes?.fornecedores, valor, "Todos");
   }
 
   return String(valor);
@@ -214,6 +310,13 @@ export default function RelatorioPreviewPage() {
     vendedores: [],
     naturezas: [],
     clientes: [],
+    grupos: [],
+    marcas: [],
+    cidades: [],
+    regioes: [],
+    fornecedores: [],
+    analises: OPCOES_ANALISE,
+    tiposData: OPCOES_TIPO_DATA,
   });
   const [form, setForm] = useState({});
   const [previewData, setPreviewData] = useState(null);
@@ -232,16 +335,25 @@ export default function RelatorioPreviewPage() {
         const detalheResp = await inspecionarRelatorio(cdarquivo);
         const opcoesResp = await obterOpcoesRelatorio(cdarquivo);
 
-        const params =
+        const paramsBrutos =
           detalheResp?.parameters_detected ||
           detalheResp?.parametros_detectados ||
           extrairParametrosDoDetalhe(detalheResp);
+
+        const params = normalizarParametrosDetectados(paramsBrutos);
 
         const opcoesNormalizadas = {
           empresas: normalizarListaOpcoes(opcoesResp?.empresas),
           vendedores: normalizarListaOpcoes(opcoesResp?.vendedores),
           naturezas: normalizarListaOpcoes(opcoesResp?.naturezas),
           clientes: normalizarListaOpcoes(opcoesResp?.clientes),
+          grupos: normalizarListaOpcoes(opcoesResp?.grupos),
+          marcas: normalizarListaOpcoes(opcoesResp?.marcas),
+          cidades: normalizarListaOpcoes(opcoesResp?.cidades),
+          regioes: normalizarListaOpcoes(opcoesResp?.regioes),
+          fornecedores: normalizarListaOpcoes(opcoesResp?.fornecedores),
+          analises: OPCOES_ANALISE,
+          tiposData: OPCOES_TIPO_DATA,
           ...opcoesResp,
         };
 
@@ -259,6 +371,26 @@ export default function RelatorioPreviewPage() {
               valorInicial === undefined
             ) {
               valorInicial = primeiraEmpresa?.VALUE ?? "";
+            }
+          }
+
+          if (param.semantic_key === "analise") {
+            if (
+              valorInicial === "" ||
+              valorInicial === null ||
+              valorInicial === undefined
+            ) {
+              valorInicial = "GRUPO";
+            }
+          }
+
+          if (param.semantic_key === "tipo_data") {
+            if (
+              valorInicial === "" ||
+              valorInicial === null ||
+              valorInicial === undefined
+            ) {
+              valorInicial = "EMISSAO";
             }
           }
 
@@ -363,6 +495,48 @@ export default function RelatorioPreviewPage() {
       );
     }
 
+    if (param.semantic_key === "grupo") {
+      return renderSelect(opcoes.grupos, valor, (e) =>
+        atualizarCampo(param.original_name, Number(e.target.value))
+      );
+    }
+
+    if (param.semantic_key === "marca") {
+      return renderSelect(opcoes.marcas, valor, (e) =>
+        atualizarCampo(param.original_name, Number(e.target.value))
+      );
+    }
+
+    if (param.semantic_key === "cidade") {
+      return renderSelect(opcoes.cidades, valor, (e) =>
+        atualizarCampo(param.original_name, Number(e.target.value))
+      );
+    }
+
+    if (param.semantic_key === "regiao") {
+      return renderSelect(opcoes.regioes, valor, (e) =>
+        atualizarCampo(param.original_name, Number(e.target.value))
+      );
+    }
+
+    if (param.semantic_key === "fornecedor") {
+      return renderSelect(opcoes.fornecedores, valor, (e) =>
+        atualizarCampo(param.original_name, Number(e.target.value))
+      );
+    }
+
+    if (param.semantic_key === "analise") {
+      return renderSelect(opcoes.analises, valor, (e) =>
+        atualizarCampo(param.original_name, e.target.value)
+      );
+    }
+
+    if (param.semantic_key === "tipo_data") {
+      return renderSelect(opcoes.tiposData, valor, (e) =>
+        atualizarCampo(param.original_name, e.target.value)
+      );
+    }
+
     if (param.inferred_type === "int" || param.inferred_type === "number") {
       return (
         <input
@@ -445,46 +619,39 @@ export default function RelatorioPreviewPage() {
                   className="btn-secondary"
                   onClick={limparPreview}
                 >
-                  Limpar preview
+                  Limpar
                 </button>
               ) : null}
             </div>
           </div>
-        </div>
-
-        <div className="preview-filtros-card">
-          <div className="preview-filtros-header">
-            <div>
-              <h2>Parâmetros</h2>
-              <p>Os dados abaixo são usados para gerar o preview do relatório.</p>
-            </div>
-          </div>
 
           {loadingMeta ? (
-            <div className="preview-hint">Carregando metadados do relatório...</div>
+            <div className="preview-loading-card">Carregando parâmetros...</div>
           ) : (
             <>
-              <div className="preview-fields-grid">
-                {parametros.map((param) => (
-                  <div className="preview-field" key={param.original_name}>
-                    <label className="preview-label">{param.original_name}</label>
-                    {renderCampo(param)}
-                    <span className="preview-hint">
-                      {param.semantic_key || param.inferred_type}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <div className="preview-filtros-card">
+                <div className="preview-grid">
+                  {parametros.map((param) => (
+                    <div className="preview-field" key={param.original_name}>
+                      <label className="preview-label">{param.original_name}</label>
+                      {renderCampo(param)}
+                      <small className="preview-field-helper">
+                        {param.semantic_key}
+                      </small>
+                    </div>
+                  ))}
+                </div>
 
-              <div className="preview-actions-row no-print">
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={gerarPreview}
-                  disabled={loadingPreview}
-                >
-                  {loadingPreview ? "Gerando preview..." : "Gerar preview"}
-                </button>
+                <div className="preview-actions-row no-print">
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={gerarPreview}
+                    disabled={loadingPreview}
+                  >
+                    {loadingPreview ? "Gerando preview..." : "Gerar preview"}
+                  </button>
+                </div>
               </div>
             </>
           )}

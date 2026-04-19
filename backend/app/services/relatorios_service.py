@@ -563,7 +563,9 @@ class RelatoriosService:
     def opcoes_relatorio(self, cdarquivo: int) -> Dict[str, Any]:
         info = self._parse_relatorio(cdarquivo)
         parsed = info["parsed"]
+
         queries = parsed.get("queries", [])
+        parameters_detected = parsed.get("parameters_detected", []) or []
 
         principal = self._escolher_query_principal(queries) if queries else None
 
@@ -579,39 +581,52 @@ class RelatoriosService:
             "fornecedores": [],
         }
 
+        detected_map: Dict[str, Dict[str, Any]] = {}
+
+        for item in parameters_detected:
+            nome = str(item.get("original_name", "")).strip().upper()
+            if nome:
+                detected_map[nome] = item
+
         for query in queries:
             if principal and query is principal:
                 continue
 
             sql_text = query.get("sql_text")
-            parametros = query.get("parametros", [])
-
             if not sql_text:
                 continue
 
-            if parametros:
-                continue
+            parametros_query = query.get("parametros", []) or []
+            params_execucao: Dict[str, Any] = {}
+
+            for parametro in parametros_query:
+                nome = parametro.get("name")
+                if not nome:
+                    continue
+
+                chave = str(nome).strip().upper()
+                detected = detected_map.get(chave, {})
+
+                valor = detected.get("default_value")
+
+                if valor is None:
+                    continue
+
+                params_execucao.update(self._gerar_aliases_parametro(nome, valor))
 
             try:
-                result = self.db.execute(text(sql_text)).mappings().all()
+                result = (
+                    self.db.execute(text(sql_text), params_execucao)
+                    .mappings()
+                    .all()
+                )
                 linhas = [dict(row) for row in result]
             except Exception:
                 continue
 
             chave = self._classificar_opcao_query(query)
 
-            if chave in {
-                "vendedores",
-                "naturezas",
-                "clientes",
-                "grupos",
-                "marcas",
-                "cidades",
-                "regioes",
-                "fornecedores",
-            }:
+            if chave in opcoes:
                 opcoes[chave] = self._normalizar_linhas_opcoes(linhas)
-            else:
-                opcoes[chave] = linhas
 
         return opcoes

@@ -2,7 +2,7 @@ import Topbar from "../components/Topbar";
 import "../styles/dashboard.css";
 import "../styles/topbar.css";
 
-function DashboardMultiEmpresa() {
+function DashboardMultiEmpresa({ onToggleSidebar, isMobileOrTablet }) {
   return (
     <div className="dashboard-page">
       <Topbar titulo="Dashboard" caminho="Dashboard / MultiEmpresa" />

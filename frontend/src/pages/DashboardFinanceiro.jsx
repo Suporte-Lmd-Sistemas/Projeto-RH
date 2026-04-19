@@ -107,7 +107,7 @@ function getHeight(value, maxValue, maxHeight) {
   return Math.max((value / maxValue) * maxHeight, 18);
 }
 
-function DashboardFinanceiro() {
+function DashboardFinanceiro({ onToggleSidebar, isMobileOrTablet }) {
   const [selectedPeriod, setSelectedPeriod] = useState("month");
   const [selectedType, setSelectedType] = useState("faturamento");
   const [empresaId, setEmpresaId] = useState("");
@@ -272,7 +272,12 @@ function DashboardFinanceiro() {
 
   return (
     <div className="dashboard-page financial-dashboard-page">
-      <Topbar titulo="Dashboard" caminho="Dashboard / Financeiro" />
+      <Topbar
+      titulo="Dashboard"
+      caminho="Dashboard / Financeiro"
+      onToggleSidebar={onToggleSidebar}
+      isMobileOrTablet={isMobileOrTablet}
+/>
 
       <section className="chart-box financial-filter-panel">
         <div className="financial-filter-top">

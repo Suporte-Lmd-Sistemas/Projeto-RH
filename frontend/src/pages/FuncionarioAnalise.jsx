@@ -8,7 +8,7 @@ import "../styles/funcionario-analise.css";
 
 const REGISTROS_POR_PAGINA = 500;
 
-function FuncionarioAnalise() {
+function FuncionarioAnalise({ onToggleSidebar, isMobileOrTablet }) {
   const params = useParams();
   const id = params.id;
 

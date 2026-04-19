@@ -110,7 +110,7 @@ function preparePieData(items = [], limit = 8) {
   }));
 }
 
-function DashboardVendas() {
+function DashboardVendas({ onToggleSidebar, isMobileOrTablet }) {
   const { empresaAtual } = useEmpresa();
 
   const [filters, setFilters] = useState({
@@ -328,6 +328,8 @@ function DashboardVendas() {
         titulo="Dashboard de Vendas"
         caminho="Dashboard / Vendas"
         subtitulo="Visão geral das vendas e performance comercial"
+        onToggleSidebar={onToggleSidebar}
+        isMobileOrTablet={isMobileOrTablet}
       />
 
       <DashboardFilters onChange={handleFilters} />
