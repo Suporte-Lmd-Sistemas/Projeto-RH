@@ -5,7 +5,7 @@ import "../styles/topbar.css";
 function RelatoriosDiversos() {
   return (
     <>
-      <Topbar titulo="Relatórios" caminho="Dashboard / Diversos" />
+      <Topbar titulo="Relatórios" caminho="Dashboard / Relatorios" />
       <ListaRelatorios categoria="diversos" titulo="Relatórios Diversos" />
     </>
   );

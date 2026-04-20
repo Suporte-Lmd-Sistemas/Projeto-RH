@@ -6,26 +6,20 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.routes.home import router as home_router
-from app.routes.departamentos import router as departamentos_router
-from app.routes.cargos import router as cargos_router
 from app.routes.funcionarios import router as funcionarios_router
 from app.routes.erp_test import router as erp_test_router
 from app.routes.erp_pessoas import router as erp_pessoas_router
-from app.routes.integracao_rh import router as integracao_rh_router
 from app.routes.erp_colaboradores import router as erp_colaboradores_router
 from app.routes.indicadores import router as indicadores_router
 from app.routes.performance import router as performance_router
 from app.routes.dashboard_financeiro import router as dashboard_financeiro_router
 from app.routes.dashboard_vendas import router as dashboard_vendas_router
-from app.routes.dashboard_funcionarios import router as dashboard_funcionarios_router
 from app.routes.relatorio import router as relatorio_router
 from app.routes.auth import router as auth_router
 from app.routes.empresa import router as empresa_router
 
-from app.database.create_tables import create_tables
-
 app = FastAPI(
-    title="RH App API",
+    title="Dashboard App API",
     version="1.0.0"
 )
 
@@ -45,30 +39,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-create_tables()
-
-# =========================
-# ROTAS DA API
-# =========================
 app.include_router(home_router)
-app.include_router(departamentos_router)
-app.include_router(cargos_router)
 app.include_router(funcionarios_router)
 app.include_router(erp_test_router)
 app.include_router(erp_pessoas_router)
-app.include_router(integracao_rh_router)
 app.include_router(erp_colaboradores_router)
 app.include_router(indicadores_router)
 app.include_router(performance_router)
 app.include_router(dashboard_financeiro_router)
 app.include_router(dashboard_vendas_router)
-app.include_router(dashboard_funcionarios_router)
 app.include_router(relatorio_router)
 app.include_router(auth_router)
 app.include_router(empresa_router)
-# =========================
-# HEALTH CHECK
-# =========================
+
+
 @app.get("/health", tags=["Sistema"])
 def health_check():
     return {
@@ -76,9 +60,7 @@ def health_check():
         "message": "API online"
     }
 
-# =========================
-# FRONTEND BUILD
-# =========================
+
 BASE_DIR = Path(__file__).resolve().parents[2]
 FRONTEND_DIST_DIR = BASE_DIR / "frontend" / "dist"
 FRONTEND_ASSETS_DIR = FRONTEND_DIST_DIR / "assets"
@@ -105,15 +87,6 @@ def serve_frontend_root():
 
 @app.get("/{full_path:path}", include_in_schema=False)
 def serve_frontend_spa(full_path: str):
-    """
-    Fallback do React Router.
-    Permite abrir diretamente rotas como:
-    /dashboard/vendas
-    /relatorios/vendas
-    /funcionarios
-    """
-
-    # Evita interceptar arquivos/rotas conhecidos
     blocked_prefixes = (
         "docs",
         "redoc",

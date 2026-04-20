@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import Topbar from "../components/Topbar";
 import FuncionarioCard from "../components/FuncionarioCard";
 import api from "../services/api";
@@ -8,13 +7,10 @@ import "../styles/topbar.css";
 import "../styles/funcionarios.css";
 
 function Funcionarios() {
-  const navigate = useNavigate();
-
   const [funcionarios, setFuncionarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
   const [pesquisa, setPesquisa] = useState("");
-  const [departamentoSelecionado, setDepartamentoSelecionado] = useState("");
   const [ordemSelecionada, setOrdemSelecionada] = useState("nome");
 
   useEffect(() => {
@@ -30,10 +26,8 @@ function Funcionarios() {
           rh_id: item.rh_id,
           col_pessoa: item.col_pessoa,
           nome: item.nome || "FUNCIONÁRIO SEM NOME",
-          cargo_rh_nome: item.cargo_rh_nome || "",
           cargo_oficial: item.cargo_oficial || "Não informado",
           departamento_nome: item.departamento_nome || "Não informado",
-          periodo: "Período Integral",
           status:
             item.status && item.status.trim() !== ""
               ? item.status
@@ -52,12 +46,6 @@ function Funcionarios() {
     carregarFuncionarios();
   }, []);
 
-  const departamentos = useMemo(() => {
-    const lista = funcionarios.map((funcionario) => funcionario.departamento_nome);
-    const unicos = [...new Set(lista)];
-    return unicos.sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [funcionarios]);
-
   const funcionariosFiltradosEOrdenados = useMemo(() => {
     let resultado = [...funcionarios];
 
@@ -67,24 +55,16 @@ function Funcionarios() {
       resultado = resultado.filter((funcionario) => {
         const nome = String(funcionario.nome || "").toLowerCase();
         const idErp = String(funcionario.col_pessoa || "").toLowerCase();
-        const departamento = String(funcionario.departamento_nome || "").toLowerCase();
-        const cargo = String(
-          funcionario.cargo_rh_nome || funcionario.cargo_oficial || ""
-        ).toLowerCase();
+        const cargo = String(funcionario.cargo_oficial || "").toLowerCase();
+        const status = String(funcionario.status || "").toLowerCase();
 
         return (
           nome.includes(texto) ||
           idErp.includes(texto) ||
-          departamento.includes(texto) ||
-          cargo.includes(texto)
+          cargo.includes(texto) ||
+          status.includes(texto)
         );
       });
-    }
-
-    if (departamentoSelecionado !== "") {
-      resultado = resultado.filter(
-        (funcionario) => funcionario.departamento_nome === departamentoSelecionado
-      );
     }
 
     if (ordemSelecionada === "nome") {
@@ -100,7 +80,7 @@ function Funcionarios() {
     }
 
     return resultado;
-  }, [funcionarios, pesquisa, departamentoSelecionado, ordemSelecionada]);
+  }, [funcionarios, pesquisa, ordemSelecionada]);
 
   return (
     <div className="dashboard-page">
@@ -110,28 +90,11 @@ function Funcionarios() {
         <div className="funcionarios-toolbar-left">
           <input
             type="text"
-            placeholder="Pesquisa"
+            placeholder="Pesquisar funcionário"
             className="funcionarios-search"
             value={pesquisa}
             onChange={(e) => setPesquisa(e.target.value)}
           />
-
-          <select
-            className="funcionarios-select"
-            value={departamentoSelecionado}
-            onChange={(e) => setDepartamentoSelecionado(e.target.value)}
-          >
-            <option value="">Todos os departamentos</option>
-            {departamentos.map((departamento) => (
-              <option key={departamento} value={departamento}>
-                {departamento}
-              </option>
-            ))}
-          </select>
-
-          <button className="funcionarios-filter-button" type="button">
-            Setores
-          </button>
         </div>
 
         <div className="funcionarios-toolbar-right">
@@ -146,14 +109,6 @@ function Funcionarios() {
               <option value="idErp">ID ERP</option>
             </select>
           </div>
-
-          <button
-            className="funcionarios-novo-vinculo"
-            type="button"
-            onClick={() => navigate("/funcionarios/novo")}
-          >
-            Novo vínculo
-          </button>
         </div>
       </div>
 
@@ -180,7 +135,7 @@ function Funcionarios() {
           <div className="funcionarios-grid">
             {funcionariosFiltradosEOrdenados.map((funcionario) => (
               <FuncionarioCard
-                key={funcionario.rh_id}
+                key={funcionario.col_pessoa}
                 funcionario={funcionario}
               />
             ))}
@@ -189,18 +144,6 @@ function Funcionarios() {
           <div className="funcionarios-footer">
             <div className="funcionarios-resultados">
               Mostrando {funcionariosFiltradosEOrdenados.length} resultado(s)
-            </div>
-
-            <div className="funcionarios-paginacao">
-              <button className="pagina-btn" type="button">
-                ‹
-              </button>
-              <button className="pagina-btn active" type="button">
-                1
-              </button>
-              <button className="pagina-btn" type="button">
-                ›
-              </button>
             </div>
           </div>
         </>

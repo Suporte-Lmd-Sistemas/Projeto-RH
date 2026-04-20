@@ -5,7 +5,7 @@ import "../styles/topbar.css";
 function RelatoriosFinanceiro() {
   return (
     <>
-      <Topbar titulo="Relatórios" caminho="Dashboard / Financeiro" />
+      <Topbar titulo="Relatórios" caminho="Dashboard / Relatorios" />
       <ListaRelatorios categoria="financeiro" titulo="Relatórios Financeiros" />
     </>
   );
