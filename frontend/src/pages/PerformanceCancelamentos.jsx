@@ -1,7 +1,7 @@
 import PerformanceDetalhePage from "../components/PerformanceDetalhePage";
 
-function PerformanceExclusoes() {
-  return <PerformanceDetalhePage tipo="exclusoes" />;
+function PerformanceCancelamentos({ onToggleSidebar, isMobileOrTablet }) {
+  return <PerformanceDetalhePage tipo="cancelamentos" />;
 }
 
-export default PerformanceExclusoes;
+export default PerformanceCancelamentos;

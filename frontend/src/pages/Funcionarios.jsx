@@ -6,7 +6,7 @@ import "../styles/dashboard.css";
 import "../styles/topbar.css";
 import "../styles/funcionarios.css";
 
-function Funcionarios() {
+function Funcionarios({ onToggleSidebar, isMobileOrTablet }) {
   const [funcionarios, setFuncionarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
@@ -84,7 +84,10 @@ function Funcionarios() {
 
   return (
     <div className="dashboard-page">
-      <Topbar titulo="Funcionários" caminho="Dashboard / Funcionários" />
+      <Topbar 
+      titulo="Funcionários" 
+      caminho="Dashboard / Funcionários" onToggleSidebar={onToggleSidebar}
+      isMobileOrTablet={isMobileOrTablet} />
 
       <div className="funcionarios-toolbar">
         <div className="funcionarios-toolbar-left">

@@ -45,7 +45,7 @@ function corDistribuicao(chave) {
   return "#7c3aed";
 }
 
-function Performance() {
+function Performance({ onToggleSidebar, isMobileOrTablet }) {
   const navigate = useNavigate();
 
   const hoje = obterDataHoje();
@@ -441,7 +441,8 @@ function Performance() {
 }
   return (
     <div className="dashboard-page performance-page">
-      <Topbar titulo="Performance" caminho="Performance" />
+      <Topbar titulo="Performance" caminho="Performance" onToggleSidebar={onToggleSidebar}
+        isMobileOrTablet={isMobileOrTablet} />
 
       <section className="performance-hero">
         <div className="performance-hero-content">

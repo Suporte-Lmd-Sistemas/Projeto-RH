@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import "../styles/sidebar.css";
 
-function Sidebar({ isMobileOrTablet = false, isOpen = false, onClose = () => {} }) {
+function Sidebar({
+  isMobileOrTablet = false,
+  isOpen = false,
+  onClose = () => {},
+}) {
   const location = useLocation();
 
   const [dashboardOpen, setDashboardOpen] = useState(
@@ -40,7 +44,16 @@ function Sidebar({ isMobileOrTablet = false, isOpen = false, onClose = () => {} 
       }`}
     >
       <div className="logo">
-        <img src="/logo.png" alt="LMD Sistemas" className="logo-image" />
+        <img
+          src="/logo-comprida.svg"
+          alt="LMD Sistemas"
+          className="sidebar-logo-full"
+        />
+        <img
+          src="/logo-azul.svg"
+          alt="LMD"
+          className="sidebar-logo-icon"
+        />
       </div>
 
       <nav className="sidebar-nav">
@@ -51,7 +64,9 @@ function Sidebar({ isMobileOrTablet = false, isOpen = false, onClose = () => {} 
             onClick={handleDashboardClick}
             title="Dashboard"
           >
-            <span className="menu-icon">▦</span>
+            <span className="menu-icon" aria-hidden="true">
+              <img src="/icons/painel.svg" alt="" />
+            </span>
             <span className="menu-label">Dashboard</span>
           </button>
 
@@ -60,7 +75,9 @@ function Sidebar({ isMobileOrTablet = false, isOpen = false, onClose = () => {} 
               <Link
                 to="/dashboard/vendas"
                 onClick={handleMobileNavigate}
-                className={`submenu-item ${isVendasRoute ? "submenu-item-active" : ""}`}
+                className={`submenu-item ${
+                  isVendasRoute ? "submenu-item-active" : ""
+                }`}
               >
                 Vendas
               </Link>
@@ -68,7 +85,9 @@ function Sidebar({ isMobileOrTablet = false, isOpen = false, onClose = () => {} 
               <Link
                 to="/dashboard/financeiro"
                 onClick={handleMobileNavigate}
-                className={`submenu-item ${isFinanceiroRoute ? "submenu-item-active" : ""}`}
+                className={`submenu-item ${
+                  isFinanceiroRoute ? "submenu-item-active" : ""
+                }`}
               >
                 Financeiro
               </Link>
@@ -76,7 +95,9 @@ function Sidebar({ isMobileOrTablet = false, isOpen = false, onClose = () => {} 
               <Link
                 to="/dashboard/multiempresa"
                 onClick={handleMobileNavigate}
-                className={`submenu-item ${isMultiempresaRoute ? "submenu-item-active" : ""}`}
+                className={`submenu-item ${
+                  isMultiempresaRoute ? "submenu-item-active" : ""
+                }`}
               >
                 MultiEmpresa
               </Link>
@@ -90,7 +111,9 @@ function Sidebar({ isMobileOrTablet = false, isOpen = false, onClose = () => {} 
           className={`menu-item ${isRelatoriosRoute ? "active" : ""}`}
           title="Relatórios"
         >
-          <span className="menu-icon">✉</span>
+          <span className="menu-icon" aria-hidden="true">
+            <img src="/icons/relatorio.svg" alt="" />
+          </span>
           <span className="menu-label">Relatórios</span>
         </Link>
 
@@ -100,7 +123,9 @@ function Sidebar({ isMobileOrTablet = false, isOpen = false, onClose = () => {} 
           className={`menu-item ${isFuncionariosRoute ? "active" : ""}`}
           title="Funcionários"
         >
-          <span className="menu-icon">👥</span>
+          <span className="menu-icon" aria-hidden="true">
+            <img src="/icons/funcionario.svg" alt="" />
+          </span>
           <span className="menu-label">Funcionários</span>
         </Link>
 
@@ -110,7 +135,9 @@ function Sidebar({ isMobileOrTablet = false, isOpen = false, onClose = () => {} 
           className={`menu-item ${isPerformanceRoute ? "active" : ""}`}
           title="Performance"
         >
-          <span className="menu-icon">↗</span>
+          <span className="menu-icon" aria-hidden="true">
+            <img src="/icons/performance.svg" alt="" />
+          </span>
           <span className="menu-label">Performance</span>
         </Link>
       </nav>
